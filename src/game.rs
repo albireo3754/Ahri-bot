@@ -1,6 +1,8 @@
+use rand::{Rng, seq::SliceRandom};
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum State {
-    queue, ready, result
+    queue, ready, result(bool)
 }
 
 pub struct Game {
@@ -9,10 +11,6 @@ pub struct Game {
     pub state: State
 }
 
-pub struct Player {
-    pub id: u64,
-    pub name: String
-}
 
 impl Game {
     pub fn new(id: u64, host: Player) -> Game {
@@ -37,13 +35,40 @@ impl Game {
         self.state = State::queue;
     }
 
-    pub fn red_players(&mut self) -> vec![] {
-        // players vector의 5번째 아이템까지를 red_players로 표현
-        self.p
+    pub fn red_players(&self) -> Vec<&Player> {
+        self.players[0..5].iter().map(|player| player).collect()
     }
 
-    pub fn blue_player(&mut self) -> vec![] {
+    pub fn blue_players(&self) -> Vec<&Player> {
+        self.players[5..10].iter().map(|player| player).collect()
+    }
 
+    pub fn shuffle_team(&mut self) {
+        let mut rng = rand::thread_rng();
+        self.players.shuffle(&mut rng);
+    }
+
+    pub fn red_win(&mut self) {
+        self.state = State::result(true);
+    }
+
+    pub fn blue_win(&mut self) {
+        self.state = State::result(false);
+    }
+}
+
+pub struct Player {
+    pub id: u64,
+    pub name: String
+}
+
+impl Player {
+    pub fn random_dummy() -> Player {
+        let id = rand::thread_rng().gen_range(1..100000000);
+        Player {
+            id,
+            name: id.to_string()
+        }
     }
 }
 

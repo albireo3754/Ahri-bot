@@ -1,4 +1,7 @@
+use std::rc::Rc;
+
 use poise::CreateReply;
+use rand::Rng;
 use serenity::all::ButtonStyle;
 use serenity::builder::{CreateSelectMenu, CreateSelectMenuOption, CreateSelectMenuKind};
 use ::serenity::builder::{CreateEmbedFooter, CreateEmbed, CreateMessage, CreateAttachment, Builder, CreateButton, CreateInteractionResponseMessage};
@@ -13,35 +16,60 @@ use crate::game;
 use crate::shared::Data;
 use crate::{shared::{Context, Error}, game::{Game, Player}};
 
-#[poise::command(slash_command, rename = "생성", prefix_command, reuse_response)]
+#[poise::command(slash_command, rename = "생성")]
 pub async fn make_game(
     ctx: Context<'_>
 ) -> Result<(), Error> {
-    let message = message_build(Game::new(1, Player { id:1, name: "Miki".into() })).await;
+    let mut game = Game::new(rand::thread_rng().gen_range(1..1000), Player { id:1, name: "Miki".into() });
+    let message = message_build(&game);
     let result = ctx.send(message).await;
-    // let result = ctx.channel_id().send_message(&ctx, message).await;
-
-    while let Some(result) = serenity::ComponentInteractionCollector::new(ctx).filter(move |press| { true }).await {
-        if result.data.custom_id == "join_game" {
-            println!("join game {}", result.data.custom_id);
-        } else if result.data.custom_id == "leave_game" {
-            println!("leave game {}", result.data.custom_id);
-        } else if result.data.custom_id == "kick" {
-            let data = &result.data.kind;
-            match data {
-                serenity::ComponentInteractionDataKind::StringSelect { values } => {
-                    println!("{:?}", values);
-                }
-                _ => {
-                    println!("잘못됨됨");
+    let game_id = game.id;
+    while let Some(interaction) = serenity::ComponentInteractionCollector::new(ctx).filter(move |interaction| { interaction.data.custom_id.starts_with(format!("{}.", game_id).as_str()) }).await {
+        let custom_id_without_game_id = interaction.data.custom_id.strip_prefix(format!("{}.", game_id).as_str()).unwrap_or(""); 
+        match custom_id_without_game_id {
+            "join_game" => {
+                println!("join game {}", interaction.data.custom_id);
+            } 
+            "leave_game" => {
+                println!("leave game {}", interaction.data.custom_id);
+            } 
+            "kick" => {
+                let data = &interaction.data.kind;
+                match data {
+                    serenity::ComponentInteractionDataKind::StringSelect { values } => {
+                        println!("{:?}", values);
+                    }
+                    _ => {
+                        println!("잘못됨됨");
+                    }
                 }
             }
-            println!("{:?}", result);
-        } else {
-            println!("Invalid id: {}", result.data.custom_id);
+            "test" => {
+                for i in 1..10 {
+                    game.add_player(Player::random_dummy());
+                }
+            }
+            "red_win" => {
+                game.red_win();
+
+            }
+            "blue_win" => {
+                game.blue_win();
+            }
+            "team_shuffle" => {
+                game.shuffle_team();
+            }
+            _ => {
+                println!("{:?}", interaction);
+                continue;
+            }
         }
 
-        let result = result.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge).await;
+        let message = message_build(&game);
+        let response_message = CreateInteractionResponseMessage::default().embeds(message.embeds).components(message.components.unwrap_or(vec![]));
+        // let editmessage = serenity::EditInteractionResponse::default().embeds(message.embeds).components(message.components.unwrap_or(vec![]);
+        let result = interaction.create_response(ctx, serenity::CreateInteractionResponse::UpdateMessage(response_message)).await;
+        println!("request: {}\nresult: {:?}", interaction.data.custom_id, result);
     }
 
     if let Ok(r) = result {
@@ -53,32 +81,52 @@ pub async fn make_game(
     Ok(())
 }
 
-async fn message_build(game: Game) -> CreateReply {
+fn message_build(game: &Game) -> CreateReply {
     let footer = CreateEmbedFooter::new("This is a footer");
-    let embed = CreateEmbed::new()
+    let mut embed = CreateEmbed::new()
         .title(format!("방 #{}", game.id))
-      // dummy를 5000자가 되도록 반복
         .timestamp(Timestamp::now());
+    let mut builder = CreateReply::default();
 
-    if game.players.len() == 10 {
-        game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", ");
-        embed.fields(vec![("레드", "", true), ("블루", "블루", true)]);
+    if let game::State::result(red_win) = game.state {
+        let red_names = game.red_players().iter().map(|player| { player.name.clone() }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().map(|player| { player.name.clone() }).collect::<Vec<String>>().join("\n");
+        embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
+        if red_win {
+            embed = embed.description("레드팀 승리!").colour(serenity::Colour::RED);
+        } else {
+            embed = embed.description("블루팀 승리!").colour(serenity::Colour::BLUE);
+        }
+    } else if game.players.len() == 10 {
+        let red_names = game.red_players().iter().map(|player| { player.name.clone() }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().map(|player| { player.name.clone() }).collect::<Vec<String>>().join("\n");
+        embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
+        
+        let red_win = CreateButton::new(format!("{}.red_win", game.id)).label("레드팀 승").style(ButtonStyle::Danger);
+        let blue_win = CreateButton::new(format!("{}.blue_win", game.id)).label("블루팀 승").style(ButtonStyle::Primary);
+        let team_shuffle = CreateButton::new(format!("{}.team_shuffle", game.id)).label("팀 섞기").style(ButtonStyle::Secondary);
+        let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
+        let win_row = CreateActionRow::Buttons(vec![red_win, blue_win, team_shuffle]);
+
+        let join_game_button = CreateButton::new(format!("{}.join_game", game.id)).label("참가하기").style(ButtonStyle::Primary).disabled(true);
+        let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
+        let join_leave_game_row = CreateActionRow::Buttons(vec![join_game_button, leave_game_button]);
+        let kick_player_select_menu = CreateSelectMenu::new(format!("{}.kick", game.id), CreateSelectMenuKind::String { options: vec![CreateSelectMenuOption::new("포항준기", "Miki")] }).placeholder("추방하기");
+        let kick_player_select_menu = CreateActionRow::SelectMenu(kick_player_select_menu);
+        builder = builder.components(vec![win_row, join_leave_game_row, kick_player_select_menu]);
     } else {
-        embed.description(format!("인원: {} / 10\n참여자: [{}]", game.players.len(), game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", ")));
+        embed = embed.description(format!("인원: {} / 10\n참여자: [{}]", game.players.len(), game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", ")));
+
+        let join_game_button = CreateButton::new(format!("{}.join_game", game.id)).label("참가하기").style(ButtonStyle::Primary);
+        let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
+        let test_game_button = CreateButton::new(format!("{}.test", game.id)).label("더미 테스트용").style(ButtonStyle::Danger);
+        let join_leave_game_row = CreateActionRow::Buttons(vec![join_game_button, leave_game_button, test_game_button]);
+        let kick_player_select_menu = CreateSelectMenu::new(format!("{}.kick", game.id), CreateSelectMenuKind::String { options: vec![CreateSelectMenuOption::new("포항준기", "Miki")] }).placeholder("추방하기");
+        let kick_player_select_menu = CreateActionRow::SelectMenu(kick_player_select_menu);
+        builder = builder.components(vec![join_leave_game_row, kick_player_select_menu]);
     }
 
-    let join_game_button = CreateButton::new("join_game").label("참가하기").style(ButtonStyle::Primary);
-    let leave_game_button = CreateButton::new("leave_game").label("떠나기").style(ButtonStyle::Danger);
-    let join_leave_game_row = CreateActionRow::Buttons(vec![join_game_button, leave_game_button]);
-    let kick_player_select_menu = CreateSelectMenu::new("kick", CreateSelectMenuKind::String { options: vec![CreateSelectMenuOption::new("포항준기", "Miki")] }).placeholder("추방하기");
-    let kick_player_select_menu = CreateActionRow::SelectMenu(kick_player_select_menu);
-    let builder = CreateReply::default()
-        .content("Hello, World!")
-        .embed(embed)
-        .components(vec![kick_player_select_menu, join_leave_game_row]);
-        
-
-    
+    let builder = builder.embed(embed);
       // .to_slash_initial_response(CreateInteractionResponseMessage::new().button(button));
       // .attachment(CreateAttachment::path("./test.png").await.unwrap());
     return builder;

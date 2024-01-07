@@ -33,6 +33,7 @@ dependencies = [
  "futures",
  "futures-util",
  "poise",
+ "rand",
  "serenity",
  "tokio",
 ]
