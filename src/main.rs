@@ -1,19 +1,13 @@
 use std::env;
 mod autocomplete;
-mod enroll;
-mod make_game;
+mod enroll_controller;
+mod make_game_controller;
+pub mod game;
 pub mod shared;
 
 use serenity::{prelude::*, client::ClientBuilder};
 use tokio::time::sleep;
 use poise::CreateReply;
-
-// 게임세션을 하나 만듦
-// 세션에다가 플레이어 참가표시를함
-// 10명이되면 준비상태가됨
-// 준비상태에는 팀원 뽑기 상태가됨
-// 팀원 뽑기 상태 이후 재뽑기 or 게임 승리표시가 가능하도록 함
-// 준비상태에서도 반복적으로 사람을 뺏다 넣었다는 가능함
 
 
 
@@ -29,9 +23,11 @@ async fn main() {
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
-                enroll::enroll(),
-                make_game::make_game(),
-                autocomplete::ahri()
+                enroll_controller::enroll(),
+                make_game_controller::make_game(),
+                // autocomplete::ahri(),
+                make_game_controller::test_reuse_response(),
+                make_game_controller::add()
                 ],
             ..Default::default()
         })
