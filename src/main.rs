@@ -9,8 +9,6 @@ use serenity::{prelude::*, client::ClientBuilder};
 use tokio::time::sleep;
 use poise::CreateReply;
 
-
-
 #[tokio::main]
 async fn main() {
     // Configure the client with your Discord bot token in the environment.

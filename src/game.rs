@@ -1,6 +1,6 @@
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum State {
-    queue, ready, play, result
+    queue, ready, result
 }
 
 pub struct Game {
@@ -35,6 +35,15 @@ impl Game {
     pub fn remove_player(&mut self, player_id: u64) {
         self.players.retain(|player| player.id != player_id);
         self.state = State::queue;
+    }
+
+    pub fn red_players(&mut self) -> vec![] {
+        // players vector의 5번째 아이템까지를 red_players로 표현
+        self.p
+    }
+
+    pub fn blue_player(&mut self) -> vec![] {
+
     }
 }
 

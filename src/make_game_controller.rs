@@ -9,6 +9,8 @@ use serenity::model::Timestamp;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 
+use crate::game;
+use crate::shared::Data;
 use crate::{shared::{Context, Error}, game::{Game, Player}};
 
 #[poise::command(slash_command, rename = "생성", prefix_command, reuse_response)]
@@ -20,9 +22,26 @@ pub async fn make_game(
     // let result = ctx.channel_id().send_message(&ctx, message).await;
 
     while let Some(result) = serenity::ComponentInteractionCollector::new(ctx).filter(move |press| { true }).await {
-        println!("{}", result.data.custom_id);
+        if result.data.custom_id == "join_game" {
+            println!("join game {}", result.data.custom_id);
+        } else if result.data.custom_id == "leave_game" {
+            println!("leave game {}", result.data.custom_id);
+        } else if result.data.custom_id == "kick" {
+            let data = &result.data.kind;
+            match data {
+                serenity::ComponentInteractionDataKind::StringSelect { values } => {
+                    println!("{:?}", values);
+                }
+                _ => {
+                    println!("잘못됨됨");
+                }
+            }
+            println!("{:?}", result);
+        } else {
+            println!("Invalid id: {}", result.data.custom_id);
+        }
+
         let result = result.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge).await;
-        println!("{:?}", result);
     }
 
     if let Ok(r) = result {
@@ -39,22 +58,25 @@ async fn message_build(game: Game) -> CreateReply {
     let embed = CreateEmbed::new()
         .title(format!("방 #{}", game.id))
       // dummy를 5000자가 되도록 반복
-        .description(format!("인원: {} / 10\n참여자: [{}]", game.players.len(), game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", ")))
-        .fields(vec![
-            ("블루", "This is\n a field body", true),
-            ("레드", "Both fi\nelds are\n in\nline", true),
-        ])
         .timestamp(Timestamp::now());
+
+    if game.players.len() == 10 {
+        game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", ");
+        embed.fields(vec![("레드", "", true), ("블루", "블루", true)]);
+    } else {
+        embed.description(format!("인원: {} / 10\n참여자: [{}]", game.players.len(), game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", ")));
+    }
 
     let join_game_button = CreateButton::new("join_game").label("참가하기").style(ButtonStyle::Primary);
     let leave_game_button = CreateButton::new("leave_game").label("떠나기").style(ButtonStyle::Danger);
     let join_leave_game_row = CreateActionRow::Buttons(vec![join_game_button, leave_game_button]);
-    let kick_player_select_menu = CreateSelectMenu::new("custom_id2", CreateSelectMenuKind::String { options: vec![CreateSelectMenuOption::new("포항준기", "Miki")] }).placeholder("추방하기");
+    let kick_player_select_menu = CreateSelectMenu::new("kick", CreateSelectMenuKind::String { options: vec![CreateSelectMenuOption::new("포항준기", "Miki")] }).placeholder("추방하기");
     let kick_player_select_menu = CreateActionRow::SelectMenu(kick_player_select_menu);
     let builder = CreateReply::default()
         .content("Hello, World!")
         .embed(embed)
         .components(vec![kick_player_select_menu, join_leave_game_row]);
+        
 
     
       // .to_slash_initial_response(CreateInteractionResponseMessage::new().button(button));
