@@ -1,23 +1,28 @@
-use std::env;
+use std::{env, sync::Arc};
 mod autocomplete;
 mod enroll_controller;
 mod make_game_controller;
 pub mod game;
 pub mod shared;
+pub mod player_manager;
+pub mod db_manager;
 
 use serenity::{prelude::*, client::ClientBuilder};
 use tokio::time::sleep;
-use poise::CreateReply;
+
+use crate::db_manager::DBManger;
 
 #[tokio::main]
 async fn main() {
-    // Configure the client with your Discord bot token in the environment.
+    let dbManager = DBManger::new();
+    
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
-    // Set gateway intents, which decides what events the bot will be notified about
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
+    
 
+    let db_ref = Arc::new(dbManager);
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
@@ -32,7 +37,7 @@ async fn main() {
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(shared::Data { id: 3 })
+                Ok(shared::Data { id: 3, player_manager: player_manager::PlayerManager::new(db_ref) })
             })
         })
         .build();

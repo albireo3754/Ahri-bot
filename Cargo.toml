@@ -12,3 +12,5 @@ poise = { git="https://github.com/serenity-rs/poise", branch="next" }
 futures = { version = "0.3.13", default-features = false }
 futures-util = { version = "0.3.13", default-features = false }
 rand = { version = "0.8.5" }
+serde = { version = "1.0.59", features = ["derive"] }
+serde_json = { version = "1.0.59" }

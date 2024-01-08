@@ -20,10 +20,19 @@ use crate::{shared::{Context, Error}, game::{Game, Player}};
 pub async fn make_game(
     ctx: Context<'_>
 ) -> Result<(), Error> {
-    let mut game = Game::new(rand::thread_rng().gen_range(1..1000), Player { id:1, name: "Miki".into() });
+    let discord_user_id = ctx.author().id;
+    let player = ctx.data().player_manager.find_player_with_discord_user_id(discord_user_id.get()).await;
+    if player.is_none() {
+        ctx.say("등록되지 않은 유저입니다. /등록 명령을 먼저 이용해주세요.").await?;
+        return Ok(());
+    }
+    let player = player.unwrap();
+    
+    let mut game = Game::new(rand::thread_rng().gen_range(1..1000), player);
     let message = message_build(&game);
     let result = ctx.send(message).await;
     let game_id = game.id;
+
     while let Some(interaction) = serenity::ComponentInteractionCollector::new(ctx).filter(move |interaction| { interaction.data.custom_id.starts_with(format!("{}.", game_id).as_str()) }).await {
         let custom_id_without_game_id = interaction.data.custom_id.strip_prefix(format!("{}.", game_id).as_str()).unwrap_or(""); 
         match custom_id_without_game_id {
@@ -51,7 +60,6 @@ pub async fn make_game(
             }
             "red_win" => {
                 game.red_win();
-
             }
             "blue_win" => {
                 game.blue_win();
@@ -89,8 +97,8 @@ fn message_build(game: &Game) -> CreateReply {
     let mut builder = CreateReply::default();
 
     if let game::State::result(red_win) = game.state {
-        let red_names = game.red_players().iter().map(|player| { player.name.clone() }).collect::<Vec<String>>().join("\n");
-        let blue_names = game.blue_players().iter().map(|player| { player.name.clone() }).collect::<Vec<String>>().join("\n");
+        let red_names = game.red_players().iter().map(|player| { player.summoner_name.clone().clone().clone() }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().map(|player| { player.summoner_name.clone().clone().clone() }).collect::<Vec<String>>().join("\n");
         embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
         if red_win {
             embed = embed.description("레드팀 승리!").colour(serenity::Colour::RED);
@@ -98,8 +106,8 @@ fn message_build(game: &Game) -> CreateReply {
             embed = embed.description("블루팀 승리!").colour(serenity::Colour::BLUE);
         }
     } else if game.players.len() == 10 {
-        let red_names = game.red_players().iter().map(|player| { player.name.clone() }).collect::<Vec<String>>().join("\n");
-        let blue_names = game.blue_players().iter().map(|player| { player.name.clone() }).collect::<Vec<String>>().join("\n");
+        let red_names = game.red_players().iter().map(|player| { player.summoner_name.clone().clone().clone() }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().map(|player| { player.summoner_name.clone().clone().clone() }).collect::<Vec<String>>().join("\n");
         embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
         
         let red_win = CreateButton::new(format!("{}.red_win", game.id)).label("레드팀 승").style(ButtonStyle::Danger);
@@ -115,7 +123,7 @@ fn message_build(game: &Game) -> CreateReply {
         let kick_player_select_menu = CreateActionRow::SelectMenu(kick_player_select_menu);
         builder = builder.components(vec![win_row, join_leave_game_row, kick_player_select_menu]);
     } else {
-        embed = embed.description(format!("인원: {} / 10\n참여자: [{}]", game.players.len(), game.players.iter().map(|p| p.name.clone()).collect::<Vec<String>>().join(", ")));
+        embed = embed.description(format!("인원: {} / 10\n참여자: [{}]", game.players.len(), game.players.iter().map(|player| player.summoner_name.clone()).collect::<Vec<String>>().join(", ")));
 
         let join_game_button = CreateButton::new(format!("{}.join_game", game.id)).label("참가하기").style(ButtonStyle::Primary);
         let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
