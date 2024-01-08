@@ -25,11 +25,15 @@ impl Game {
         }
     }
 
-    pub fn add_player(&mut self, player: Player) {
+    pub fn add_player(&mut self, player: Player) -> bool {
+        // check the player is already in self.players
+        
+
         self.players.push(player);
         if self.players.len() == 10 {
             self.state = State::ready;
         }
+        return true
     }
 
     pub fn remove_player(&mut self, player_id: u64) -> bool {

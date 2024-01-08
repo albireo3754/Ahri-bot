@@ -37,9 +37,16 @@ pub async fn make_game(
         let custom_id_without_game_id = interaction.data.custom_id.strip_prefix(format!("{}.", game_id).as_str()).unwrap_or(""); 
         match custom_id_without_game_id {
             "join_game" => {
-                println!("join game {}", interaction.data.custom_id);
+                let discord_user_id = ctx.author().id;
+                let player = ctx.data().player_manager.find_player_with_discord_user_id(discord_user_id.get()).await;
+                if player.is_none() {
+                    ctx.say("등록되지 않은 유저입니다. /등록 명령을 먼저 이용해주세요.").await?;
+                    return Ok(());
+                }
+                let player = player.unwrap();
+                game.add_player(player);
             } 
-            "leave_game" => {
+            "leave_game" =>     {
                 println!("leave game {}", interaction.data.custom_id);
             } 
             "kick" => {
