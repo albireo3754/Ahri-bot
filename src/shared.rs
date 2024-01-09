@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::player_manager::PlayerManager;
 
 pub struct Data {
@@ -7,3 +9,26 @@ pub struct Data {
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
+
+#[derive(Debug)]
+pub struct CustomError {
+    details: String,
+}
+
+impl CustomError {
+    pub fn new(msg: &str) -> CustomError {
+        CustomError { details: msg.to_string() }
+    }
+}
+
+impl fmt::Display for CustomError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.details)
+    }
+}
+
+impl std::error::Error for CustomError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+}

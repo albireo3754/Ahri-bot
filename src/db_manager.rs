@@ -6,22 +6,27 @@ use crate::game::{Player, Game, Tier};
 
 pub struct DBManger {
     players_vec: Mutex<Vec<Player>>,
-    save_queue: Mutex<i32>
+    last_game_id: Mutex<i32>
 }
 
 impl DBManger {
     pub fn new() -> Self {
-        let mut user_id_json_string_result = fs::read_to_string("data/user_id.json");
+        let mut user_id_json_string_result = fs::read_to_string("./.data/user_id.json");
         if user_id_json_string_result.is_err() {
-            fs::create_dir("./data").unwrap();
-            fs::write("./data/user_id.json", "[]").unwrap();
-            user_id_json_string_result = fs::read_to_string("data/user_id.json");
+            fs::create_dir_all("./.data/game").unwrap();
+            fs::write("./.data/user_id.json", "[]").unwrap();
+            user_id_json_string_result = fs::read_to_string("./.data/user_id.json");
         }
         let players_vec: Vec<Player> = serde_json::from_str(user_id_json_string_result.unwrap().as_str()).unwrap_or(Vec::new());
-
+        let mut game_count = fs::read_dir("./.data/game").unwrap().map(|entry| {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            let file_name = path.file_name().unwrap().to_str().unwrap();
+            file_name.replace(".json", "").parse::<i32>().unwrap()
+        }).max().unwrap_or(0);
         DBManger {
             players_vec: Mutex::new(players_vec),
-            save_queue: Mutex::new(0)
+            last_game_id: Mutex::new(game_count as i32)
         }
     }
 
@@ -51,6 +56,28 @@ impl DBManger {
         self.save(players_vec.clone()).await;
     }
 
+    pub async fn update_player_score(&self, player_id: u64, score: i32) {
+        let mut players_vec = self.players_vec.lock().await;
+        let player = players_vec.iter_mut().find(|player| player.id == player_id).unwrap();
+        player.score = score;
+
+        self.save(players_vec.clone()).await;
+    }
+
+    pub async fn update_players(&self, new_players: &Vec<Player>) {
+        let mut players_vec = self.players_vec.lock().await;
+        new_players.iter().for_each(|new_player| {
+            if let Some(player) = players_vec.iter_mut().find(|p| { 
+                p.id == new_player.id 
+            }) {    
+                *player = new_player.clone();
+                println!("player: {:?}, new_player: {:?} score:{:?}", player.win, new_player.win, player.score);
+            }
+        });
+
+        self.save(players_vec.clone()).await;
+    }
+
     pub async fn create_player_with_discord_user_id(&self, discord_user_id: u64, summoner_name: String, tier: Tier) -> Player {
         let mut players_vec = self.players_vec.lock().await;
         let player = Player::new((players_vec.len() + 1) as u64, discord_user_id, summoner_name, tier);
@@ -61,14 +88,22 @@ impl DBManger {
     }
 
     async fn save(&self, players_vec: Vec<Player>) {
+
         tokio::spawn(async move {
-            tokio::fs::write(format!("data/user_id.json"), serde_json::to_string(&players_vec).unwrap()).await.unwrap();
+            println!("save {:?}", players_vec.iter().map(|player| player.score).collect::<Vec<i32>>());
+            tokio::fs::write(format!("./.data/user_id.json"), serde_json::to_string(&players_vec).unwrap()).await.unwrap();
         });
     }
 
     pub async fn create_game(&self, game: Game) {
-        tokio::spawn(async move {
-            tokio::fs::write(format!("data/game/{}.json", game.id), serde_json::to_string(&game).unwrap()).await.unwrap();
-        });
+        let mut last_game_id = self.last_game_id.lock().await;
+        tokio::fs::write(format!("./.data/game/{}.json", game.id), serde_json::to_string(&game).unwrap()).await.unwrap();
+        *last_game_id = game.id as i32;
+    }
+
+    pub async fn get_new_game_id(&self) -> i32 {
+        let mut last_game_id = self.last_game_id.lock().await;
+        *last_game_id += 1;
+        return *last_game_id;
     }
 }

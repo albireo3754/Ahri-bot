@@ -21,7 +21,6 @@ async fn main() {
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
     
-
     let db_ref = Arc::new(dbManager);
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -29,8 +28,8 @@ async fn main() {
                 enroll_controller::enroll(),
                 make_game_controller::make_game(),
                 // autocomplete::ahri(),
-                make_game_controller::test_reuse_response(),
-                make_game_controller::add()
+                // make_game_controller::test_reuse_response(),
+                // make_game_controller::add()
                 ],
             ..Default::default()
         })

@@ -1,3 +1,4 @@
+use core::fmt;
 use std::rc::Rc;
 
 use poise::CreateReply;
@@ -12,23 +13,28 @@ use serenity::model::Timestamp;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 
-use crate::game;
-use crate::shared::Data;
+use crate::player_manager::PlayerManager;
+use crate::{game, player_manager};
+use crate::shared::{Data, CustomError};
 use crate::{shared::{Context, Error}, game::{Game, Player}};
+
+async fn get_player_from_discord_context(ctx: &Context<'_>) -> Result<Player, Error> {
+    let discord_user_id = ctx.author().id;
+    let player = ctx.data().player_manager.find_player_with_discord_user_id(discord_user_id.get()).await;
+    if player.is_none() {
+        ctx.say("등록되지 않은 유저입니다. /등록 명령을 먼저 이용해주세요.").await;
+        return Err(Box::new(CustomError::new("등록되지 않은 유저입니다. /등록 명령을 먼저 이용해주세요.")));
+    }
+    return Ok(player.unwrap());
+}
 
 #[poise::command(slash_command, rename = "생성")]
 pub async fn make_game(
     ctx: Context<'_>
 ) -> Result<(), Error> {
-    let discord_user_id = ctx.author().id;
-    let player = ctx.data().player_manager.find_player_with_discord_user_id(discord_user_id.get()).await;
-    if player.is_none() {
-        ctx.say("등록되지 않은 유저입니다. /등록 명령을 먼저 이용해주세요.").await?;
-        return Ok(());
-    }
-    let player = player.unwrap();
+    let player = get_player_from_discord_context(&ctx).await?;
     
-    let mut game = Game::new(rand::thread_rng().gen_range(1..1000), player);
+    let mut game = ctx.data().player_manager.generate_game(player).await;
     let message = message_build(&game);
     let result = ctx.send(message).await;
     let game_id = game.id;
@@ -37,28 +43,30 @@ pub async fn make_game(
         let custom_id_without_game_id = interaction.data.custom_id.strip_prefix(format!("{}.", game_id).as_str()).unwrap_or(""); 
         match custom_id_without_game_id {
             "join_game" => {
-                let discord_user_id = ctx.author().id;
-                let player = ctx.data().player_manager.find_player_with_discord_user_id(discord_user_id.get()).await;
-                if player.is_none() {
-                    ctx.say("등록되지 않은 유저입니다. /등록 명령을 먼저 이용해주세요.").await?;
-                    return Ok(());
+                let player = get_player_from_discord_context(&ctx).await?;
+                if !game.add_player(player) {
+                    ctx.say("이미 등록된 유저입니다.").await;
+                    continue;
                 }
-                let player = player.unwrap();
-                game.add_player(player);
             } 
-            "leave_game" =>     {
+            "leave_game" => {
+                let player = get_player_from_discord_context(&ctx).await?;
+                game.remove_player(player.id);
                 println!("leave game {}", interaction.data.custom_id);
             } 
             "kick" => {
-                let data = &interaction.data.kind;
-                match data {
-                    serenity::ComponentInteractionDataKind::StringSelect { values } => {
-                        println!("{:?}", values);
-                    }
-                    _ => {
-                        println!("잘못됨됨");
-                    }
-                }
+                ctx.say("준비중인 기능입니다").await;
+                continue;
+                // let data = &interaction.data.kind;
+                // match data {
+                //     serenity::ComponentInteractionDataKind::StringSelect { values } => {
+                //         // TODO: - 왜 value array로 받는지 조사해야함
+                //         println!("kick {}", values[0]);
+                //     }
+                //     _ => {
+                //         println!("잘못됨됨");
+                //     }
+                // }
             }
             "test" => {
                 for i in 1..10 {
@@ -67,15 +75,18 @@ pub async fn make_game(
             }
             "red_win" => {
                 game.red_win();
+                ctx.data().player_manager.end_game(game.clone()).await;
             }
             "blue_win" => {
                 game.blue_win();
+                ctx.data().player_manager.end_game(game.clone()).await;
             }
             "team_shuffle" => {
+                ctx.say("팀을 섞습니다. 현재는 랜덤입니다.").await;
                 game.shuffle_team();
             }
             _ => {
-                println!("{:?}", interaction);
+                ctx.say("모몬가").await;
                 continue;
             }
         }

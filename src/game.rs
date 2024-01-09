@@ -25,9 +25,18 @@ impl Game {
         }
     }
 
+    pub fn is_red_winner(&self) -> bool {
+        match self.state {
+            State::result(is_red_win) => is_red_win,
+            _ => false
+        }
+    }
+
     pub fn add_player(&mut self, player: Player) -> bool {
         // check the player is already in self.players
-        
+        if self.players.iter().any(|p| p.id == player.id) {
+            return false
+        }
 
         self.players.push(player);
         if self.players.len() == 10 {
@@ -56,6 +65,14 @@ impl Game {
         self.players[5..10].iter().map(|player| player).collect()
     }
 
+    pub fn mut_red_players(&mut self) -> Vec<&mut Player> {
+        self.players[0..5].iter_mut().map(|player| player).collect()
+    }
+
+    pub fn mut_blue_players(&mut self) -> Vec<&mut Player> {
+        self.players[5..10].iter_mut().map(|player| player).collect()
+    }
+
     pub fn shuffle_team(&mut self) {
         let mut rng = rand::thread_rng();
         self.players.shuffle(&mut rng);
@@ -79,6 +96,43 @@ pub struct Player {
     pub score: i32,
     pub win: i32,
     pub lose: i32
+}
+
+impl Player {
+    pub fn new(id: u64, discord_id: u64, summoner_name: String, tier: Tier) -> Player {
+        // let score = Tier::tier_to_init_score(&tier);
+        let score = 1300;
+        Player {
+            id,
+            discord_id: vec![discord_id],
+            summoner_name,
+            tier,
+            score: score,
+            win: 0,
+            lose: 0
+        }
+    }
+
+    pub fn random_dummy() -> Player {
+        let id = rand::thread_rng().gen_range(1..100000000);
+        Player::new(id, id, id.to_string(), Tier::Iron(Division::I))
+    }
+}
+
+impl Player {
+    pub fn win(&mut self, score: i32) {
+        self.win += 1;
+        self.score += score;
+    }
+
+    pub fn lose(&mut self, score: i32) {
+        self.lose += 1;
+        self.score -= score;
+    }
+
+    pub fn add_discord_id(&mut self, discord_id: u64) {
+        self.discord_id.push(discord_id);
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -175,29 +229,6 @@ pub enum Division {
     I, II, III, IV   
 }
 
-impl Player {
-    pub fn new(id: u64, discord_id: u64, summoner_name: String, tier: Tier) -> Player {
-        let score = Tier::tier_to_init_score(&tier);
-        Player {
-            id,
-            discord_id: vec![discord_id],
-            summoner_name,
-            tier,
-            score: score,
-            win: 0,
-            lose: 0
-        }
-    }
-
-    pub fn random_dummy() -> Player {
-        let id = rand::thread_rng().gen_range(1..100000000);
-        Player::new(id, id, id.to_string(), Tier::Iron(Division::I))
-    }
-
-    pub fn add_discord_id(&mut self, discord_id: u64) {
-        self.discord_id.push(discord_id);
-    }
-}
 
 mod test {
     use super::*;
