@@ -1,6 +1,7 @@
 use core::fmt;
 use std::rc::Rc;
 
+use itertools::Itertools;
 use poise::CreateReply;
 use rand::Rng;
 use serenity::all::ButtonStyle;
@@ -22,10 +23,11 @@ async fn get_player_from_discord_context(ctx: &Context<'_>) -> Result<Player, Er
     let discord_user_id = ctx.author().id;
     let player = ctx.data().player_manager.find_player_with_discord_user_id(discord_user_id.get()).await;
     if player.is_none() {
-        ctx.say("등록되지 않은 유저입니다. /등록 명령을 먼저 이용해주세요.").await;
-        return Err(Box::new(CustomError::new("등록되지 않은 유저입니다. /등록 명령을 먼저 이용해주세요.")));
+        let player = ctx.data().player_manager.register_player_v2(discord_user_id.get()).await;
+        return Ok(player);
+    } else {
+        return Ok(player.unwrap());
     }
-    return Ok(player.unwrap());
 }
 
 #[poise::command(slash_command, rename = "생성")]
@@ -123,8 +125,8 @@ fn message_build(game: &Game) -> CreateReply {
             embed = embed.description("블루팀 승리!").colour(serenity::Colour::BLUE);
         }
     } else if game.players.len() == 10 {
-        let red_names = game.red_players().iter().map(|player| { player.summoner_name.clone() }).collect::<Vec<String>>().join("\n");
-        let blue_names = game.blue_players().iter().map(|player| { player.summoner_name.clone() }).collect::<Vec<String>>().join("\n");
+        let red_names = game.red_players().iter().sorted_by_key(|x| -x.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().sorted_by_key(|x| -x.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
         embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
         
         let red_win = CreateButton::new(format!("{}.red_win", game.id)).label("레드팀 승").style(ButtonStyle::Danger);

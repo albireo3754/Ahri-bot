@@ -166,6 +166,18 @@ impl Player {
         }
     }
 
+    pub fn new_v2(id: u64, discord_id: u64) -> Player {
+        Player {
+            id,
+            discord_id: vec![discord_id],
+            summoner_name: format!("<@{}>", discord_id),
+            tier: Tier::Challenger,
+            score: 1300,
+            win: 0,
+            lose: 0
+        }
+    }
+
     pub fn random_dummy() -> Player {
         let id = rand::thread_rng().gen_range(1..100000000);
         let mut scores = vec![1000, 1100, 1200, 1300, 1400, 1500, 1600];

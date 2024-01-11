@@ -87,6 +87,14 @@ impl DBManger {
         player
     }
 
+    pub async fn create_player_with_discord_user_id_v2(&self, discord_user_id: u64) -> Player {
+        let mut players_vec = self.players_vec.lock().await;
+        let player = Player::new_v2((players_vec.len() + 1) as u64, discord_user_id);
+        (*players_vec).push(player.clone());
+        
+        self.save(players_vec.clone()).await;
+        player
+    }
     async fn save(&self, players_vec: Vec<Player>) {
 
         tokio::spawn(async move {

@@ -68,6 +68,10 @@ impl PlayerManager {
         self.db.create_player_with_discord_user_id(discord_user_id, summoner_name, tier).await
     }
 
+    pub async fn register_player_v2(&self, discord_user_id: u64) -> Player {
+        self.db.create_player_with_discord_user_id_v2(discord_user_id).await
+    }
+
     pub async fn generate_game(&self, host: Player) -> Game {
 
         return Game::new(self.db.get_new_game_id().await as u64, host);
