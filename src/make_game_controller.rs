@@ -5,6 +5,7 @@ use itertools::Itertools;
 use poise::CreateReply;
 use rand::Rng;
 use serenity::all::ButtonStyle;
+use ::serenity::all::UserId;
 use serenity::builder::{CreateSelectMenu, CreateSelectMenuOption, CreateSelectMenuKind};
 use ::serenity::builder::{CreateEmbedFooter, CreateEmbed, CreateMessage, CreateAttachment, Builder, CreateButton, CreateInteractionResponseMessage};
 use serenity::{async_trait, builder::CreateActionRow};
@@ -19,8 +20,7 @@ use crate::{game, player_manager};
 use crate::shared::{Data, CustomError};
 use crate::{shared::{Context, Error}, game::{Game, Player}};
 
-async fn get_player_from_discord_context(ctx: &Context<'_>) -> Result<Player, Error> {
-    let discord_user_id = ctx.author().id;
+async fn get_player_from_discord_context(ctx: &Context<'_>, discord_user_id: UserId) -> Result<Player, Error> {
     let player = ctx.data().player_manager.find_player_with_discord_user_id(discord_user_id.get()).await;
     if player.is_none() {
         let player = ctx.data().player_manager.register_player_v2(discord_user_id.get()).await;
@@ -34,7 +34,7 @@ async fn get_player_from_discord_context(ctx: &Context<'_>) -> Result<Player, Er
 pub async fn make_game(
     ctx: Context<'_>
 ) -> Result<(), Error> {
-    let player = get_player_from_discord_context(&ctx).await?;
+    let player = get_player_from_discord_context(&ctx, ctx.author().id).await?;
     
     let mut game = ctx.data().player_manager.generate_game(player).await;
     let message = message_build(&game);
@@ -45,14 +45,14 @@ pub async fn make_game(
         let custom_id_without_game_id = interaction.data.custom_id.strip_prefix(format!("{}.", game_id).as_str()).unwrap_or(""); 
         match custom_id_without_game_id {
             "join_game" => {
-                let player = get_player_from_discord_context(&ctx).await?;
+                let player = get_player_from_discord_context(&ctx, interaction.user.id).await?;
                 if !game.add_player(player) {
                     ctx.say("이미 등록된 유저입니다.").await;
                     continue;
                 }
             } 
             "leave_game" => {
-                let player = get_player_from_discord_context(&ctx).await?;
+                let player = get_player_from_discord_context(&ctx, interaction.user.id).await?;
                 game.remove_player(player.id);
                 println!("leave game {}", interaction.data.custom_id);
             } 
