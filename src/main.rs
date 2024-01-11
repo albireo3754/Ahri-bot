@@ -14,18 +14,18 @@ use crate::db_manager::DBManger;
 
 #[tokio::main]
 async fn main() {
-    let dbManager = DBManger::new();
+    let db_manager = DBManger::new();
     
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
     
-    let db_ref = Arc::new(dbManager);
+    let db_ref = Arc::new(db_manager);
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
-                enroll_controller::enroll(),
+                // enroll_controller::enroll(),
                 make_game_controller::make_game(),
                 // autocomplete::ahri(),
                 // make_game_controller::test_reuse_response(),

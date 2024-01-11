@@ -94,7 +94,6 @@ pub async fn make_game(
 
         let message = message_build(&game);
         let response_message = CreateInteractionResponseMessage::default().embeds(message.embeds).components(message.components.unwrap_or(vec![]));
-        // let editmessage = serenity::EditInteractionResponse::default().embeds(message.embeds).components(message.components.unwrap_or(vec![]);
         let result = interaction.create_response(ctx, serenity::CreateInteractionResponse::UpdateMessage(response_message)).await;
         println!("request: {}\nresult: {:?}", interaction.data.custom_id, result);
     }
