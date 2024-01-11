@@ -1,4 +1,7 @@
-use rand::{Rng, seq::SliceRandom};
+use std::{cmp::Ordering, ops::{Index, IndexMut}, borrow::BorrowMut};
+
+use itertools::Itertools;
+use rand::{Rng, seq::SliceRandom, random};
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
@@ -10,7 +13,8 @@ pub enum State {
 pub struct Game {
     pub id: u64,
     pub players: Vec<Player>,
-    pub state: State
+    pub state: State,
+    pub team_bit: i32
 }
 
 
@@ -21,13 +25,14 @@ impl Game {
         Game {
             id: id,
             players: players,
-            state: State::queue
+            state: State::queue,
+            team_bit: 0b11111
         }
     }
 
     pub fn is_red_winner(&self) -> bool {
         match self.state {
-            State::result(is_red_win) => is_red_win,
+            State::result(is_blue_win) => !is_blue_win,
             _ => false
         }
     }
@@ -58,32 +63,80 @@ impl Game {
     }
 
     pub fn red_players(&self) -> Vec<&Player> {
-        self.players[0..5].iter().map(|player| player).collect()
+        let mut red_team_players = Vec::with_capacity(5);
+
+        for i in 0..10 {
+            if self.team_bit & (1 << i) == 0 {
+                red_team_players.push(&self.players[i]);
+            }
+        }
+        // self.players[0..5].iter().map(|player| player).collect()
+        red_team_players
     }
 
     pub fn blue_players(&self) -> Vec<&Player> {
-        self.players[5..10].iter().map(|player| player).collect()
+        let mut blue_team_players = Vec::with_capacity(5);
+        
+        for i in 0..10 {
+            if self.team_bit & (1 << i) != 0 {
+                blue_team_players.push(&self.players[i]);
+            }
+        }
+        // self.players[0..5].iter().map(|player| player).collect()
+        blue_team_players
     }
 
     pub fn mut_red_players(&mut self) -> Vec<&mut Player> {
-        self.players[0..5].iter_mut().map(|player| player).collect()
+        self.players.iter_mut().enumerate().filter(|(index, _)| { self.team_bit & (1 << index) == 0 }).map(|(_, player)| { player }).collect()
     }
 
     pub fn mut_blue_players(&mut self) -> Vec<&mut Player> {
-        self.players[5..10].iter_mut().map(|player| player).collect()
+        self.players.iter_mut().enumerate().filter(|(index, _)| { self.team_bit & (1 << index) != 0 }).map(|(_, player)| { player }).collect()
     }
 
     pub fn shuffle_team(&mut self) {
         let mut rng = rand::thread_rng();
-        self.players.shuffle(&mut rng);
+        // self.players.shuffle(&mut rng);
+        // 팀을 어떻게 섞지?
+        
+        let total_scores = self.players.iter().fold(0, |acc, player| { player.score + acc });
+
+        let combs: Vec<Vec<&Player>> = self.players.iter().combinations(5).collect();
+        
+        let mut combs_score: Vec<(i32, i32)> = combs.iter().enumerate().map(|(i, players)| {
+            (i as i32, players.iter().fold(0, |acc, player| { acc + player.score }))
+        }).collect();
+        combs_score.sort_by(|lhs, rhs| { 
+            if (total_scores / 2).abs_diff(lhs.1) < (total_scores / 2).abs_diff(rhs.1) {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        });
+        let mut blue_team_index = (&combs_score[0..(combs_score.len() / 3)]).to_vec();
+        blue_team_index.shuffle(&mut rng);
+        let blue_team_players_ref = &combs[blue_team_index[0].0 as usize];
+        let mut new_team_bit = 0;
+
+        for blue_team_player in blue_team_players_ref {
+            for i in 0..10 {
+                if blue_team_player.id == self.players[i].id {
+                    new_team_bit |= (1 << i);
+                    break;
+                }
+            }
+        }
+        println!("new bit: {}", self.team_bit);
+        self.team_bit = new_team_bit;
+
     }
 
     pub fn red_win(&mut self) {
-        self.state = State::result(true);
+        self.state = State::result(false);
     }
 
     pub fn blue_win(&mut self) {
-        self.state = State::result(false);
+        self.state = State::result(true);
     }
 }
 
@@ -115,7 +168,19 @@ impl Player {
 
     pub fn random_dummy() -> Player {
         let id = rand::thread_rng().gen_range(1..100000000);
-        Player::new(id, id, id.to_string(), Tier::Iron(Division::I))
+        let mut scores = vec![1000, 1100, 1200, 1300, 1400, 1500, 1600];
+        let mut rng = rand::thread_rng();
+        scores.shuffle(&mut rng);
+
+        Player {
+            id,
+            discord_id: Vec::new(),
+            summoner_name: format!("{}", scores[0]),
+            tier: Tier::Diamond(Division::II),
+            score: scores[0],
+            win: 0,
+            lose: 0
+        }
     }
 }
 
@@ -275,5 +340,23 @@ mod test {
         expected.push(State::queue);
         expected.push(State::ready);
         assert_eq!(game_state_result, expected);
+    }
+
+    #[test]
+    fn test_whenNewGame_Create_redTeam5Players_blueTeam5Players() {
+        // Given
+        let mut game = Game::new(1, Player::random_dummy());
+
+        // When
+        for i in 2..=10 {
+            game.add_player(Player::random_dummy());
+        }
+
+        let blue_players = game.blue_players();
+        blue_players[0];
+
+        // Then
+        assert_eq!(game.red_players().len(), game.blue_players().len());
+        assert_eq!(game.red_players().len(), 5);
     }
 }

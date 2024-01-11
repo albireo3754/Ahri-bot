@@ -82,7 +82,6 @@ pub async fn make_game(
                 ctx.data().player_manager.end_game(game.clone()).await;
             }
             "team_shuffle" => {
-                ctx.say("팀을 섞습니다. 현재는 랜덤입니다.").await;
                 game.shuffle_team();
             }
             _ => {
@@ -115,8 +114,8 @@ fn message_build(game: &Game) -> CreateReply {
     let mut builder = CreateReply::default();
 
     if let game::State::result(red_win) = game.state {
-        let red_names = game.red_players().iter().map(|player| { player.summoner_name.clone().clone().clone() }).collect::<Vec<String>>().join("\n");
-        let blue_names = game.blue_players().iter().map(|player| { player.summoner_name.clone().clone().clone() }).collect::<Vec<String>>().join("\n");
+        let red_names = game.red_players().iter().map(|player| { player.summoner_name.clone() }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().map(|player| { player.summoner_name.clone() }).collect::<Vec<String>>().join("\n");
         embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
         if red_win {
             embed = embed.description("레드팀 승리!").colour(serenity::Colour::RED);
@@ -124,8 +123,8 @@ fn message_build(game: &Game) -> CreateReply {
             embed = embed.description("블루팀 승리!").colour(serenity::Colour::BLUE);
         }
     } else if game.players.len() == 10 {
-        let red_names = game.red_players().iter().map(|player| { player.summoner_name.clone().clone().clone() }).collect::<Vec<String>>().join("\n");
-        let blue_names = game.blue_players().iter().map(|player| { player.summoner_name.clone().clone().clone() }).collect::<Vec<String>>().join("\n");
+        let red_names = game.red_players().iter().map(|player| { player.summoner_name.clone() }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().map(|player| { player.summoner_name.clone() }).collect::<Vec<String>>().join("\n");
         embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
         
         let red_win = CreateButton::new(format!("{}.red_win", game.id)).label("레드팀 승").style(ButtonStyle::Danger);
@@ -146,10 +145,15 @@ fn message_build(game: &Game) -> CreateReply {
         let join_game_button = CreateButton::new(format!("{}.join_game", game.id)).label("참가하기").style(ButtonStyle::Primary);
         let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
         let test_game_button = CreateButton::new(format!("{}.test", game.id)).label("더미 테스트용").style(ButtonStyle::Danger);
-        let join_leave_game_row = CreateActionRow::Buttons(vec![join_game_button, leave_game_button, test_game_button]);
+        let join_leave_game_row = CreateActionRow::Buttons(vec![join_game_button, leave_game_button]);
+        let test_game_row = CreateActionRow::Buttons(vec![test_game_button]);
         let kick_player_select_menu = CreateSelectMenu::new(format!("{}.kick", game.id), CreateSelectMenuKind::String { options: vec![CreateSelectMenuOption::new("포항준기", "Miki")] }).placeholder("추방하기");
         let kick_player_select_menu = CreateActionRow::SelectMenu(kick_player_select_menu);
-        builder = builder.components(vec![join_leave_game_row, kick_player_select_menu]);
+        builder = builder.components(vec![
+            join_leave_game_row,
+            test_game_row,
+            kick_player_select_menu
+            ]);
     }
 
     let builder = builder.embed(embed);
