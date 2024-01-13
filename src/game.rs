@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum State {
-    queue, ready, result(bool)
+    queue, ready, result(bool), board
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -126,9 +126,7 @@ impl Game {
                 }
             }
         }
-        println!("new bit: {}", self.team_bit);
         self.team_bit = new_team_bit;
-
     }
 
     pub fn red_win(&mut self) {
@@ -154,7 +152,7 @@ pub struct Player {
 impl Player {
     pub fn new(id: u64, discord_id: u64, summoner_name: String, tier: Tier) -> Player {
         // let score = Tier::tier_to_init_score(&tier);
-        let score = 1300;
+        let score = 1200;
         Player {
             id,
             discord_id: vec![discord_id],

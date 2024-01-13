@@ -6,6 +6,7 @@ pub mod game;
 pub mod shared;
 pub mod player_manager;
 pub mod db_manager;
+pub mod board_controller;
 
 use serenity::{prelude::*, client::ClientBuilder};
 use tokio::time::sleep;
@@ -30,6 +31,7 @@ async fn main() {
                 // autocomplete::ahri(),
                 // make_game_controller::test_reuse_response(),
                 // make_game_controller::add()
+                board_controller::board()
                 ],
             ..Default::default()
         })

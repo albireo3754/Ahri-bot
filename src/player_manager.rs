@@ -17,7 +17,7 @@ impl PlayerManager {
         let mut game = game;
         // // sum all players win/lose
         game.players.iter().any(|player| { player.win + player.lose < 3 });
-        let scores = [150, 130, 100, 130, 150];
+        let scores = [123, 111, 103, 111, 123];
         
         
         let mut win_player = match game.is_red_winner() {
@@ -30,7 +30,7 @@ impl PlayerManager {
         }
 
         for i in 0..5 {
-            win_player[i].win(scores[i]);
+            win_player[i].win(scores[i] + 10);
         }
 
         let mut lose_player = match game.is_red_winner() {
@@ -54,6 +54,10 @@ impl PlayerManager {
     fn hande_win_player(&self, player: &mut Player, score: i32) {
         player.win += 1;
         player.score += score;
+    }
+
+    pub async fn find_all_player(&self) -> Vec<Player> {
+        self.db.select_all_player().await
     }
 
     pub async fn find_player_with_discord_user_id(&self, discord_user_id: u64) -> Option<Player> {

@@ -48,6 +48,12 @@ impl DBManger {
         result
     }
 
+    pub async fn select_all_player(&self) -> Vec<Player> {
+        let result = self.players_vec.lock().await;
+        
+        result.clone()
+    }
+
     pub async fn update_discord_id_to_player(&self, player_id: u64, discord_user_id: u64) {
         let mut players_vec = self.players_vec.lock().await;
         let player = players_vec.iter_mut().find(|player| player.id == player_id).unwrap();

@@ -30,6 +30,8 @@ async fn get_player_from_discord_context(ctx: &Context<'_>, discord_user_id: Use
     }
 }
 
+
+
 #[poise::command(slash_command, rename = "생성")]
 pub async fn make_game(
     ctx: Context<'_>
@@ -114,11 +116,11 @@ fn message_build(game: &Game) -> CreateReply {
         .timestamp(Timestamp::now());
     let mut builder = CreateReply::default();
 
-    if let game::State::result(red_win) = game.state {
-        let red_names = game.red_players().iter().map(|player| { player.summoner_name.clone() }).collect::<Vec<String>>().join("\n");
-        let blue_names = game.blue_players().iter().map(|player| { player.summoner_name.clone() }).collect::<Vec<String>>().join("\n");
+    if let game::State::result(_) = game.state {
+        let red_names = game.red_players().iter().map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
         embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
-        if red_win {
+        if game.is_red_winner() {
             embed = embed.description("레드팀 승리!").colour(serenity::Colour::RED);
         } else {
             embed = embed.description("블루팀 승리!").colour(serenity::Colour::BLUE);
@@ -126,13 +128,13 @@ fn message_build(game: &Game) -> CreateReply {
     } else if game.players.len() == 10 {
         let red_names = game.red_players().iter().sorted_by_key(|x| -x.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
         let blue_names = game.blue_players().iter().sorted_by_key(|x| -x.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
-        embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
+        embed = embed.fields(vec![("블루", blue_names, true), ("레드", red_names, true)]);
         
         let red_win = CreateButton::new(format!("{}.red_win", game.id)).label("레드팀 승").style(ButtonStyle::Danger);
         let blue_win = CreateButton::new(format!("{}.blue_win", game.id)).label("블루팀 승").style(ButtonStyle::Primary);
         let team_shuffle = CreateButton::new(format!("{}.team_shuffle", game.id)).label("팀 섞기").style(ButtonStyle::Secondary);
         let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
-        let win_row = CreateActionRow::Buttons(vec![red_win, blue_win, team_shuffle]);
+        let win_row = CreateActionRow::Buttons(vec![blue_win, red_win, team_shuffle]);
 
         let join_game_button = CreateButton::new(format!("{}.join_game", game.id)).label("참가하기").style(ButtonStyle::Primary).disabled(true);
         let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
