@@ -19,7 +19,7 @@ fn board_message_build(player: Vec<Player>) -> CreateReply {
     .title(format!("보드"))
     .timestamp(serenity::Timestamp::now());
   let mut builder = CreateReply::default();
-  embed = embed.field("",player.iter().sorted_by_key(|player| -player.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n"), false);
+  embed = embed.field("",player.iter().sorted_by_key(|player| -player.score).map(|player| { format!("{}(승:{}, 패: {}, 점수: {})", player.summoner_name.clone(), player.win, player.lose, player.score) }).collect::<Vec<String>>().join("\n"), false);
   let builder = builder.embed(embed);
   // .to_slash_initial_response(CreateInteractionResponseMessage::new().button(button));
   // .attachment(CreateAttachment::path("./test.png").await.unwrap());
