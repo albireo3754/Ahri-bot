@@ -32,6 +32,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "futures-util",
+ "glicko2",
  "itertools",
  "poise",
  "rand",
@@ -550,6 +551,12 @@ name = "gimli"
 version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
+
+[[package]]
+name = "glicko2"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47c7363f4d5d9534d6049b1b4882e32d084bae29662c05527d809968738a04c1"
 
 [[package]]
 name = "glob"

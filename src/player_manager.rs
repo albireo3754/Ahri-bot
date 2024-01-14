@@ -1,5 +1,6 @@
 use std::{rc::Rc, sync::Arc};
 
+use glicko2::{GlickoRating, GameResult};
 use rand::seq::SliceRandom;
 
 use crate::{game::{Player, Game, Tier}, db_manager::DBManger};
@@ -11,6 +12,73 @@ pub struct PlayerManager {
 impl PlayerManager {
     pub fn new(db: Arc<DBManger>) -> Self {
         PlayerManager { db }
+    }
+
+    
+    pub async fn end_game2(&self, game: Game) {
+        let example_rating = GlickoRating {
+            value: 1500.0,
+            deviation: 200.0,
+        };
+        let mut results = vec![];
+        results.push(GameResult::win(GlickoRating {
+            value: 1400.0,
+            deviation: 30.0,
+        }));
+        results.push(GameResult::loss(GlickoRating {
+            value: 1550.0,
+            deviation: 100.0,
+        }));
+        results.push(GameResult::loss(GlickoRating {
+            value: 1700.0,
+            deviation: 300.0,
+        }));
+        // We are converting the result of new_rating to a GlickoRating immediately, throwing away the
+        // benefits of Glicko2 over Glicko for the sake of matching the example in the glicko2 pdf.
+        // In a real application, you'd likely want to save the Glicko2Rating and convert to
+        // GlickoRating for display purposes only.
+        let new_rating: GlickoRating = glicko2::new_rating(example_rating.into(), &results, 0.5).into();
+        println!(
+            "New rating value: {} New rating deviation: {}",
+            new_rating.value,
+            new_rating.deviation
+        );
+
+        let mut game = game;
+        // // sum all players win/lose
+        game.players.iter().any(|player| { player.win + player.lose < 3 });
+        let scores = [123, 111, 103, 111, 123];
+        
+        
+        let mut win_player = match game.is_red_winner() {
+            true => game.mut_red_players(),
+            false => game.mut_blue_players()
+        };
+        {   
+            let mut rng = rand::thread_rng();
+            (*win_player).shuffle(&mut rng);
+        }
+
+        for i in 0..5 {
+            win_player[i].win(scores[i] + 10);
+        }
+
+        let mut lose_player = match game.is_red_winner() {
+            false => game.mut_red_players(),
+            true => game.mut_blue_players()
+        };
+        {
+            let mut rng = rand::thread_rng();
+            (*lose_player).shuffle(&mut rng);
+        }
+
+        for i in 0..5 {
+            lose_player[i].lose(scores[i]);
+        }
+        // print players score
+        println!("{:?}", game.players.iter().map(|player| player.score).collect::<Vec<i32>>());
+        self.db.update_players(&game.players).await;
+        self.db.create_game(game).await;
     }
 
     pub async fn end_game(&self, game: Game) {

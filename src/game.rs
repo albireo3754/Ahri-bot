@@ -146,7 +146,13 @@ pub struct Player {
     pub tier: Tier,
     pub score: i32,
     pub win: i32,
-    pub lose: i32
+    pub lose: i32,
+    #[serde(default = "score_deviation")]
+    pub score_deviation: i32,
+}
+
+fn score_deviation() -> i32 {
+    200
 }
 
 impl Player {
@@ -160,7 +166,8 @@ impl Player {
             tier,
             score: score,
             win: 0,
-            lose: 0
+            lose: 0,
+            score_deviation: score_deviation()
         }
     }
 
@@ -172,7 +179,8 @@ impl Player {
             tier: Tier::Challenger,
             score: 1300,
             win: 0,
-            lose: 0
+            lose: 0,
+            score_deviation: score_deviation()
         }
     }
 
@@ -189,7 +197,8 @@ impl Player {
             tier: Tier::Diamond(Division::II),
             score: scores[0],
             win: 0,
-            lose: 0
+            lose: 0,
+            score_deviation: score_deviation()
         }
     }
 }
@@ -306,6 +315,8 @@ pub enum Division {
 
 
 mod test {
+    use glicko2::{GlickoRating, GameResult};
+
     use super::*;
 
     // create game and add player to 10 player, then state will be ready test
@@ -368,5 +379,99 @@ mod test {
         // Then
         assert_eq!(game.red_players().len(), game.blue_players().len());
         assert_eq!(game.red_players().len(), 5);
+    }
+
+    #[test]
+    fn test_whenOneTeamWin_ScoreChanged() {
+        // Given
+        let mut game = Game::new(1, Player::random_dummy());
+
+        // When
+        for i in 2..=10 {
+            game.add_player(Player::random_dummy());
+        }
+
+        let win = game.red_players();
+        let lose = game.blue_players();
+
+        let mut new_win_score = Vec::with_capacity(5);
+        let mut new_lose_score = Vec::with_capacity(5);
+
+        let mut results = vec![];
+        for j in 0..5 {
+            results.push(GameResult::win(GlickoRating {
+                value: f64::from(lose[j].score),
+                deviation: f64::from(lose[j].score_deviation),
+            }));
+
+            
+        }
+
+        for i in 0..5 {
+            let before_rating = GlickoRating { 
+                value: f64::from(win[i].score), 
+                deviation: f64::from(win[i].score_deviation) 
+            };
+
+            let new_rating: GlickoRating = glicko2::new_rating(before_rating.into(), &results, 0.5).into();
+            new_win_score.push(new_rating);
+        }
+
+        let mut results = vec![];
+        for j in 0..5 {
+            results.push(GameResult::loss(GlickoRating {
+                value: f64::from(win[j].score),
+                deviation: f64::from(win[j].score_deviation),
+            }));
+        }
+
+        for i in 0..5 {
+            let before_rating = GlickoRating { 
+                value: f64::from(lose[i].score), 
+                deviation: f64::from(lose[i].score_deviation) 
+            };
+
+            let new_rating: GlickoRating = glicko2::new_rating(before_rating.into(), &results, 0.5).into();
+            new_lose_score.push(new_rating);
+        }
+        // We are converting the result of new_rating to a GlickoRating immediately, throwing away the
+        // benefits of Glicko2 over Glicko for the sake of matching the example in the glicko2 pdf.
+        // In a real application, you'd likely want to save the Glicko2Rating and convert to
+        // GlickoRating for display purposes only.
+
+        win.iter().for_each(|new_player| {
+        println!(
+            "Winner rating value: {} New rating deviation: {}",
+            new_player.score,
+            new_player.score_deviation
+        );
+
+        });
+            
+        
+        new_win_score.iter().for_each(|new_rating| {
+        println!(
+            "Winner rating value: {} New rating deviation: {}",
+            new_rating.value,
+            new_rating.deviation
+        );
+        });
+
+        lose.iter().for_each(|new_player| {
+            println!(
+                "Winner rating value: {} New rating deviation: {}",
+                new_player.score,
+                new_player.score_deviation
+            );
+    
+            });
+            
+        new_lose_score.iter().for_each(|new_rating| {
+            println!(
+                "Lose rating value: {} New rating deviation: {}",
+                new_rating.value,
+                new_rating.deviation
+            );
+            });            
     }
 }
