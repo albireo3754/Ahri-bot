@@ -204,14 +204,16 @@ impl Player {
 }
 
 impl Player {
-    pub fn win(&mut self, score: i32) {
+    pub fn win(&mut self, score: i32, score_deviation: i32) {
         self.win += 1;
-        self.score += score;
+        self.score = score;
+        self.score_deviation = score_deviation;
     }
 
-    pub fn lose(&mut self, score: i32) {
+    pub fn lose(&mut self, score: i32, score_deviation: i32) {
         self.lose += 1;
-        self.score -= score;
+        self.score = score;
+        self.score_deviation = score_deviation;
     }
 
     pub fn add_discord_id(&mut self, discord_id: u64) {
@@ -403,8 +405,6 @@ mod test {
                 value: f64::from(lose[j].score),
                 deviation: f64::from(lose[j].score_deviation),
             }));
-
-            
         }
 
         for i in 0..5 {
@@ -434,6 +434,7 @@ mod test {
             let new_rating: GlickoRating = glicko2::new_rating(before_rating.into(), &results, 0.5).into();
             new_lose_score.push(new_rating);
         }
+
         // We are converting the result of new_rating to a GlickoRating immediately, throwing away the
         // benefits of Glicko2 over Glicko for the sake of matching the example in the glicko2 pdf.
         // In a real application, you'd likely want to save the Glicko2Rating and convert to
@@ -473,5 +474,23 @@ mod test {
                 new_rating.deviation
             );
             });            
+    }
+
+    #[test]
+    fn test_whenGameIsSet_thenGetSomeRedPlayerRecursively_thenGetSameOrder() {
+        // Given
+        let mut game = Game::new(1, Player::random_dummy());
+
+        // When
+        for i in 2..=10 {
+            game.add_player(Player::random_dummy());
+        }
+
+        let red_players = game.red_players();
+        let red_players_id = red_players.iter().map(|player| player.id).collect::<Vec<u64>>();
+        let mut_red_players = &game.mut_red_players();
+
+        // Then
+        assert_eq!(red_players_id, mut_red_players.iter().map(|player| player.id).collect::<Vec<u64>>());
     }
 }

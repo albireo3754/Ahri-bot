@@ -79,11 +79,11 @@ pub async fn make_game(
             }
             "red_win" => {
                 game.red_win();
-                ctx.data().player_manager.end_game(game.clone()).await;
+                ctx.data().player_manager.end_game(&mut game).await;
             }
             "blue_win" => {
                 game.blue_win();
-                ctx.data().player_manager.end_game(game.clone()).await;
+                ctx.data().player_manager.end_game(&mut game).await;
             }
             "team_shuffle" => {
                 game.shuffle_team();
@@ -117,9 +117,9 @@ fn message_build(game: &Game) -> CreateReply {
     let mut builder = CreateReply::default();
 
     if let game::State::result(_) = game.state {
-        let red_names = game.red_players().iter().map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
-        let blue_names = game.blue_players().iter().map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
-        embed = embed.fields(vec![("레드", red_names, true), ("블루", blue_names, true)]);
+        let red_names = game.red_players().iter().sorted_by_key(|x| -x.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
+        let blue_names = game.blue_players().iter().sorted_by_key(|x| -x.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
+        embed = embed.fields(vec![("블루", blue_names, true), ("레드", red_names, true)]);
         if game.is_red_winner() {
             embed = embed.description("레드팀 승리!").colour(serenity::Colour::RED);
         } else {
