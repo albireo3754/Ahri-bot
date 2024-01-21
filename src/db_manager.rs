@@ -115,6 +115,11 @@ impl DBManger {
         *last_game_id = game.id as i32;
     }
 
+    pub async fn load_game(&self, game_id: i32) -> Game {
+        let raw_game = tokio::fs::read(format!("./.data/game/{}.json", game_id)).await.unwrap();
+        serde_json::from_slice::<Game>(&raw_game).unwrap()
+    }
+
     pub async fn get_new_game_id(&self) -> i32 {
         let mut last_game_id = self.last_game_id.lock().await;
         *last_game_id += 1;

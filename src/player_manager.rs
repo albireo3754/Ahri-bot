@@ -71,7 +71,7 @@ impl PlayerManager {
         };
 
         win_player.iter_mut().zip(new_win_score.iter()).for_each(|(player, score)| {
-            player.win(score.value as i32, score.deviation as i32);
+            player.win(score.value as i32 + 30, score.deviation as i32 + 15);
         });
 
         let mut lose_player = match game.is_red_winner() {
@@ -80,7 +80,7 @@ impl PlayerManager {
         };
 
         lose_player.iter_mut().zip(new_lose_score.iter()).for_each(|(player, score)| {
-            player.lose(score.value as i32, score.deviation as i32);
+            player.lose(score.value as i32, score.deviation as i32 + 15);
         });
 
         // print players score
