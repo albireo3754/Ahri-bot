@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum State {
-    queue, ready, result(bool), board
+    queue, ready, start, result(bool), board
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -38,7 +38,6 @@ impl Game {
     }
 
     pub fn add_player(&mut self, player: Player) -> bool {
-        // check the player is already in self.players
         if self.players.iter().any(|p| p.id == player.id) {
             return false
         }
@@ -46,6 +45,7 @@ impl Game {
         self.players.push(player);
         if self.players.len() == 10 {
             self.state = State::ready;
+            self.shuffle_team();
         }
         return true
     }
@@ -96,13 +96,10 @@ impl Game {
 
     pub fn shuffle_team(&mut self) {
         let mut rng = rand::thread_rng();
-        // self.players.shuffle(&mut rng);
-        // 팀을 어떻게 섞지?
         
         let total_scores = self.players.iter().fold(0, |acc, player| { player.score + acc });
 
         let combs: Vec<Vec<&Player>> = self.players.iter().combinations(5).collect();
-        
         let mut combs_score: Vec<(i32, i32)> = combs.iter().enumerate().map(|(i, players)| {
             (i as i32, players.iter().fold(0, |acc, player| { acc + player.score }))
         }).collect();
@@ -135,6 +132,11 @@ impl Game {
 
     pub fn blue_win(&mut self) {
         self.state = State::result(true);
+    }
+
+    pub fn start(&mut self) {
+        assert!(self.players.len() == 10);
+        self.state = State::start;
     }
 }
 
