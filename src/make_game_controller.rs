@@ -70,9 +70,6 @@ pub async fn make_game(
                 game.remove_player(player.id);
             }
             "start_game" => {
-                // let result = ctx.defer().await;
-                // println!("def result: {:?}", result);
-                
                 game.start();
 
                 let guild = ctx.partial_guild().await.unwrap();
