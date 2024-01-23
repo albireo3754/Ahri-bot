@@ -5,7 +5,7 @@ use itertools::Itertools;
 use poise::CreateReply;
 use rand::Rng;
 use serenity::all::ButtonStyle;
-use ::serenity::all::UserId;
+use ::serenity::all::{UserId, ChannelType};
 use serenity::builder::{CreateSelectMenu, CreateSelectMenuOption, CreateSelectMenuKind};
 use ::serenity::builder::{CreateEmbedFooter, CreateEmbed, CreateMessage, CreateAttachment, Builder, CreateButton, CreateInteractionResponseMessage};
 use serenity::{async_trait, builder::CreateActionRow};
@@ -15,6 +15,7 @@ use serenity::model::Timestamp;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 
+use crate::game::State;
 use crate::player_manager::PlayerManager;
 use crate::{game, player_manager};
 use crate::shared::{Data, CustomError};
@@ -37,11 +38,22 @@ pub async fn make_game(
     ctx: Context<'_>
 ) -> Result<(), Error> {
     let player = get_player_from_discord_context(&ctx, ctx.author().id).await?;
-    
     let mut game = ctx.data().player_manager.generate_game(player).await;
     let message = message_build(&game);
     let result = ctx.send(message).await;
     let game_id = game.id;
+
+    let channel_ids: Vec<serenity::ChannelId> = ctx.partial_guild()
+        .await
+        .unwrap()
+        .channels(ctx)
+        .await
+        .unwrap()
+        .values()
+        .filter(|channel| channel.kind == ChannelType::Voice)
+        .sorted_by_key(|channel| channel.position)
+        .map(|channel| channel.id)
+        .collect();
 
     while let Some(interaction) = serenity::ComponentInteractionCollector::new(ctx).filter(move |interaction| { interaction.data.custom_id.starts_with(format!("{}.", game_id).as_str()) }).await {
         let custom_id_without_game_id = interaction.data.custom_id.strip_prefix(format!("{}.", game_id).as_str()).unwrap_or(""); 
@@ -56,8 +68,46 @@ pub async fn make_game(
             "leave_game" => {
                 let player = get_player_from_discord_context(&ctx, interaction.user.id).await?;
                 game.remove_player(player.id);
-                println!("leave game {}", interaction.data.custom_id);
-            } 
+            }
+            "start_game" => {
+                // let result = ctx.defer().await;
+                // println!("def result: {:?}", result);
+                
+                game.start();
+
+                let guild = ctx.partial_guild().await.unwrap();
+                let channelMap = guild 
+                    .channels(ctx)
+                    .await
+                    .unwrap();
+
+                let channels: Vec<&serenity::GuildChannel> = channelMap
+                    .values()
+                    .filter(|channel| channel.kind == ChannelType::Voice)
+                    .sorted_by_key(|channel| channel.position)
+                    .collect();
+
+                let channel_ids: Vec<serenity::ChannelId> = channels
+                    .iter()
+                    .map(|channel| channel.id)
+                    .collect();
+
+                let blue_channel_id = channel_ids[0];
+                let red_channel_id = channel_ids[1];
+
+                let blue_players = game.blue_players();
+                let blue_awaits: Vec<_> = 
+                    blue_players.iter().map(|player| { guild.move_member(ctx, player.discord_id.first().unwrap_or(&1).clone(), blue_channel_id) }).collect();
+                let red_players = game.red_players();
+                let red_awaits: Vec<_> = 
+                    red_players.iter().map(|player| { guild.move_member(ctx, player.discord_id.first().unwrap_or(&1).clone(), red_channel_id) }).collect();
+                
+                // TODO: 이걸 한번에 await 하는법이 없을까?
+                let results = futures::future::join_all(blue_awaits).await;
+                println!("{:?}", results);
+                let results = futures::future::join_all(red_awaits).await;
+                println!("{:?}", results);
+            }
             "kick" => {
                 ctx.say("준비중인 기능입니다").await;
                 continue;
@@ -129,19 +179,26 @@ fn message_build(game: &Game) -> CreateReply {
         let red_names = game.red_players().iter().sorted_by_key(|x| -x.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
         let blue_names = game.blue_players().iter().sorted_by_key(|x| -x.score).map(|player| { format!("{}({})", player.summoner_name.clone(), player.score) }).collect::<Vec<String>>().join("\n");
         embed = embed.fields(vec![("블루", blue_names, true), ("레드", red_names, true)]);
-        
-        let red_win = CreateButton::new(format!("{}.red_win", game.id)).label("레드팀 승").style(ButtonStyle::Danger);
-        let blue_win = CreateButton::new(format!("{}.blue_win", game.id)).label("블루팀 승").style(ButtonStyle::Primary);
-        let team_shuffle = CreateButton::new(format!("{}.team_shuffle", game.id)).label("팀 섞기").style(ButtonStyle::Secondary);
-        let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
-        let win_row = CreateActionRow::Buttons(vec![blue_win, red_win, team_shuffle]);
 
-        let join_game_button = CreateButton::new(format!("{}.join_game", game.id)).label("참가하기").style(ButtonStyle::Primary).disabled(true);
-        let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
-        let join_leave_game_row = CreateActionRow::Buttons(vec![join_game_button, leave_game_button]);
-        let kick_player_select_menu = CreateSelectMenu::new(format!("{}.kick", game.id), CreateSelectMenuKind::String { options: vec![CreateSelectMenuOption::new("포항준기", "Miki")] }).placeholder("추방하기");
-        let kick_player_select_menu = CreateActionRow::SelectMenu(kick_player_select_menu);
-        builder = builder.components(vec![win_row, join_leave_game_row, kick_player_select_menu]);
+        if game.state == State::start {
+            let red_win = CreateButton::new(format!("{}.red_win", game.id)).label("레드팀 승").style(ButtonStyle::Danger);
+            let blue_win = CreateButton::new(format!("{}.blue_win", game.id)).label("블루팀 승").style(ButtonStyle::Primary);
+            let win_row = CreateActionRow::Buttons(vec![blue_win, red_win]);
+
+            builder = builder.components(vec![win_row]);
+        } else {
+            let start_button = CreateButton::new(format!("{}.start_game", game.id)).label("게임 시작").style(ButtonStyle::Secondary);
+            let team_shuffle = CreateButton::new(format!("{}.team_shuffle", game.id)).label("팀 섞기").style(ButtonStyle::Secondary);
+            let shuffle_row = CreateActionRow::Buttons(vec![start_button, team_shuffle]);
+
+            let join_game_button = CreateButton::new(format!("{}.join_game", game.id)).label("참가하기").style(ButtonStyle::Primary).disabled(true);
+            let leave_game_button = CreateButton::new(format!("{}.leave_game", game.id)).label("떠나기").style(ButtonStyle::Danger);
+            let join_leave_game_row = CreateActionRow::Buttons(vec![join_game_button, leave_game_button]);
+            let kick_player_select_menu = CreateSelectMenu::new(format!("{}.kick", game.id), CreateSelectMenuKind::String { options: vec![CreateSelectMenuOption::new("포항준기", "Miki")] }).placeholder("추방하기");
+            let kick_player_select_menu = CreateActionRow::SelectMenu(kick_player_select_menu);
+            builder = builder.components(vec![shuffle_row, join_leave_game_row, kick_player_select_menu]);
+        }
+        
     } else {
         embed = embed.description(format!("인원: {} / 10\n참여자: [{}]", game.players.len(), game.players.iter().map(|player| player.summoner_name.clone()).collect::<Vec<String>>().join(", ")));
 
@@ -156,7 +213,7 @@ fn message_build(game: &Game) -> CreateReply {
             join_leave_game_row,
             test_game_row,
             kick_player_select_menu
-            ]);
+        ]);
     }
 
     let builder = builder.embed(embed);
@@ -189,10 +246,7 @@ pub async fn test_reuse_response(ctx: Context<'_>) -> Result<(), Error> {
     };
 
     ctx.send(reply).await?;
-    println!("sleeping for 2 seconds...");
-    // tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
-    println!("sleeping for 2 seconds...");
     let image_url = "https://raw.githubusercontent.com/serenity-rs/serenity/current/examples/e09_create_message_builder/ferris_eyes.png";
     let reply = {
         let embed = serenity::CreateEmbed::default()
