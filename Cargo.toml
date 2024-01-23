@@ -16,3 +16,4 @@ serde = { version = "1.0.59", features = ["derive"] }
 serde_json = { version = "1.0.59" }
 itertools = { version = "0.12.0" }
 glicko2 = { version = "0.3.1" }
+dotenv = { version = "0.15.0" }

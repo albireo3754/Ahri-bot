@@ -143,46 +143,36 @@ impl Game {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Player {
     pub id: u64,
-    pub discord_id: Vec<u64>,
+    pub discord_id: u64,
     pub summoner_name: String,
-    pub tier: Tier,
     pub score: i32,
     pub win: i32,
     pub lose: i32,
-    #[serde(default = "score_deviation")]
     pub score_deviation: i32,
 }
 
-fn score_deviation() -> i32 {
-    200
-}
-
 impl Player {
-    pub fn new(id: u64, discord_id: u64, summoner_name: String, tier: Tier) -> Player {
-        // let score = Tier::tier_to_init_score(&tier);
-        let score = 1200;
-        Player {
-            id,
-            discord_id: vec![discord_id],
-            summoner_name,
-            tier,
-            score: score,
-            win: 0,
-            lose: 0,
-            score_deviation: score_deviation()
-        }
-    }
-
     pub fn new_v2(id: u64, discord_id: u64) -> Player {
         Player {
             id,
-            discord_id: vec![discord_id],
+            discord_id,
             summoner_name: format!("<@{}>", discord_id),
-            tier: Tier::Challenger,
             score: 1300,
             win: 0,
             lose: 0,
-            score_deviation: score_deviation()
+            score_deviation: 200
+        }
+    }
+
+    pub fn migrate(id: u64, discord_id: u64, score: i32, win: i32, lose: i32, score_deviation: i32) -> Player {
+        Player {
+            id,
+            discord_id,
+            summoner_name: format!("<@{}>", discord_id),
+            score,
+            win,
+            lose,
+            score_deviation
         }
     }
 
@@ -194,13 +184,12 @@ impl Player {
 
         Player {
             id,
-            discord_id: Vec::new(),
-            summoner_name: format!("{}", scores[0]),
-            tier: Tier::Diamond(Division::II),
+            summoner_name: format!("<@{}>", id),
+            discord_id: id,
             score: scores[0],
             win: 0,
             lose: 0,
-            score_deviation: score_deviation()
+            score_deviation: 200
         }
     }
 }
@@ -216,10 +205,6 @@ impl Player {
         self.lose += 1;
         self.score = score;
         self.score_deviation = score_deviation;
-    }
-
-    pub fn add_discord_id(&mut self, discord_id: u64) {
-        self.discord_id.push(discord_id);
     }
 }
 

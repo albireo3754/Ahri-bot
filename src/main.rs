@@ -15,6 +15,8 @@ use crate::db_manager::DBManger;
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok();
+
     let db_manager = DBManger::new();
     
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");

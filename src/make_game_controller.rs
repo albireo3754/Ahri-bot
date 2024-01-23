@@ -94,10 +94,10 @@ pub async fn make_game(
 
                 let blue_players = game.blue_players();
                 let blue_awaits: Vec<_> = 
-                    blue_players.iter().map(|player| { guild.move_member(ctx, player.discord_id.first().unwrap_or(&1).clone(), blue_channel_id) }).collect();
+                    blue_players.iter().map(|player| { guild.move_member(ctx, player.discord_id, blue_channel_id) }).collect();
                 let red_players = game.red_players();
                 let red_awaits: Vec<_> = 
-                    red_players.iter().map(|player| { guild.move_member(ctx, player.discord_id.first().unwrap_or(&1).clone(), red_channel_id) }).collect();
+                    red_players.iter().map(|player| { guild.move_member(ctx, player.discord_id, red_channel_id) }).collect();
                 
                 // TODO: 이걸 한번에 await 하는법이 없을까?
                 let results = futures::future::join_all(blue_awaits).await;

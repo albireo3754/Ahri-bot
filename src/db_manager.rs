@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fs, path};
 
+use serde::{Serialize, Deserialize};
 use tokio::{fs::File, io::AsyncReadExt, sync::Mutex};
 
 use crate::game::{Player, Game, Tier};
@@ -9,7 +10,30 @@ pub struct DBManger {
     last_game_id: Mutex<i32>
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct PlayerLegacy {
+    pub id: u64,
+    pub discord_id: Vec<u64>,
+    pub summoner_name: String,
+    pub tier: Tier,
+    pub score: i32,
+    pub win: i32,
+    pub lose: i32,
+    #[serde(default = "score_deviation")]
+    pub score_deviation: i32,
+}
+
+fn score_deviation() -> i32 {
+    200
+}
+
 impl DBManger {
+    pub fn migrate_player(user_json_str: &str) -> Vec<Player> {
+        let mut players_vec: Vec<PlayerLegacy> = serde_json::from_str(user_json_str).unwrap_or(Vec::new());
+
+        players_vec.iter().map(|legacy| { Player::migrate(legacy.id, legacy.discord_id.first().unwrap_or(&0).clone(), legacy.score, legacy.win, legacy.lose, legacy.score_deviation)}).collect()
+    }
+
     pub fn new() -> Self {
         let mut user_id_json_string_result = fs::read_to_string("./.data/user_id.json");
         if user_id_json_string_result.is_err() {
@@ -17,7 +41,19 @@ impl DBManger {
             fs::write("./.data/user_id.json", "[]").unwrap();
             user_id_json_string_result = fs::read_to_string("./.data/user_id.json");
         }
-        let players_vec: Vec<Player> = serde_json::from_str(user_id_json_string_result.unwrap().as_str()).unwrap_or(Vec::new());
+
+        let user_id_json_string_result = user_id_json_string_result.unwrap();
+        let user_id_json_string = user_id_json_string_result.as_str();
+        let mut players_vec: Vec<Player> = serde_json::from_str(user_id_json_string).unwrap_or(Vec::new());
+
+        if players_vec.len() == 0 {
+            players_vec = DBManger::migrate_player(user_id_json_string);
+            if players_vec.len() > 0 {
+                fs::write("./.data/user_id.json", serde_json::to_string(&players_vec).unwrap()).unwrap();
+                // TODO: - Game migrate logic need because game's vector has PlayerLegacy & Player
+            }
+        }
+
         let mut game_count = fs::read_dir("./.data/game").unwrap().map(|entry| {
             let entry = entry.unwrap();
             let path = entry.path();
@@ -33,7 +69,7 @@ impl DBManger {
     pub async fn select_player_with_discord_user_id(&self, discord_user_id: u64) -> Option<Player> {
         let result = self.players_vec.lock().await
             .iter()
-            .find(|player| player.discord_id.contains(&discord_user_id))
+            .find(|player| player.discord_id == discord_user_id)
             .map(|player| player.clone());
 
         result
@@ -52,14 +88,6 @@ impl DBManger {
         let result = self.players_vec.lock().await;
         
         result.clone()
-    }
-
-    pub async fn update_discord_id_to_player(&self, player_id: u64, discord_user_id: u64) {
-        let mut players_vec = self.players_vec.lock().await;
-        let player = players_vec.iter_mut().find(|player| player.id == player_id).unwrap();
-        player.discord_id.push(discord_user_id);
-
-        self.save(players_vec.clone()).await;
     }
 
     pub async fn update_player_score(&self, player_id: u64, score: i32) {
@@ -86,7 +114,7 @@ impl DBManger {
 
     pub async fn create_player_with_discord_user_id(&self, discord_user_id: u64, summoner_name: String, tier: Tier) -> Player {
         let mut players_vec = self.players_vec.lock().await;
-        let player = Player::new((players_vec.len() + 1) as u64, discord_user_id, summoner_name, tier);
+        let player = Player::new_v2((players_vec.len() + 1) as u64, discord_user_id);
         (*players_vec).push(player.clone());
         
         self.save(players_vec.clone()).await;
@@ -101,8 +129,8 @@ impl DBManger {
         self.save(players_vec.clone()).await;
         player
     }
-    async fn save(&self, players_vec: Vec<Player>) {
 
+    async fn save(&self, players_vec: Vec<Player>) {
         tokio::spawn(async move {
             println!("save {:?}", players_vec.iter().map(|player| player.score).collect::<Vec<i32>>());
             tokio::fs::write(format!("./.data/user_id.json"), serde_json::to_string(&players_vec).unwrap()).await.unwrap();
