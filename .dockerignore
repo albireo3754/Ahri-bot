@@ -1,5 +1,4 @@
 # flyctl launch added from .gitignore
 target
-**/.env
 .data
 fly.toml

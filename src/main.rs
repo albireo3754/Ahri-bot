@@ -1,4 +1,4 @@
-use std::{env, sync::Arc};
+use std::{env, sync::Arc, net::{TcpListener, TcpStream}, io::{Write, Read}};
 mod autocomplete;
 mod enroll_controller;
 mod make_game_controller;
@@ -15,7 +15,7 @@ use crate::db_manager::DBManger;
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
+    dotenv::dotenv().unwrap();
 
     let db_manager = DBManger::new();
     
@@ -52,10 +52,22 @@ async fn main() {
         }
     });
 
+    tokio::spawn(async move {
+        let app = axum::Router::new()
+        .route("/", axum::routing::get(|| async { "Hello, world!" }))
+        .route("/health", axum::routing::get(|| async { axum::http::StatusCode::NO_CONTENT }));
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+        axum::serve(listener, app)
+            .await
+            .unwrap();
+    });
+
+    println!("server will start");
     let client = ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
     let result = client.expect("fail to start").start().await;
     
-    println!("${}", result.expect_err("error"));
+    
+    println!("${:?}", result);
 }

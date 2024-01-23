@@ -18,6 +18,7 @@ WORKDIR /app
 
 # Get compiled binaries from builder's cargo install directory
 COPY --from=builder /usr/src/app/ahribot /app/ahribot
+COPY --from=builder /usr/src/app/.env /app
 
 # Run the app
 CMD ./ahribot

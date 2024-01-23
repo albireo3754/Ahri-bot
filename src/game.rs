@@ -17,7 +17,6 @@ pub struct Game {
     pub team_bit: i32
 }
 
-
 impl Game {
     pub fn new(id: u64, host: Player) -> Game {
         let mut players = vec![host];
