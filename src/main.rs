@@ -11,13 +11,13 @@ pub mod board_controller;
 use serenity::{prelude::*, client::ClientBuilder};
 use tokio::time::sleep;
 
-use crate::db_manager::DBManger;
+use crate::db_manager::InMemoryDBManger;
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().unwrap();
 
-    let db_manager = DBManger::new();
+    let db_manager = InMemoryDBManger::new();
     
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES

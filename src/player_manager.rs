@@ -3,14 +3,15 @@ use std::{rc::Rc, sync::Arc};
 use glicko2::{GlickoRating, GameResult};
 use rand::seq::SliceRandom;
 
-use crate::{game::{Player, Game, Tier}, db_manager::DBManger};
+use crate::{game::{Player, Game, Tier}, db_manager::{DBManager, InMemoryDBManger}};
 
-pub struct PlayerManager {
-    db: Arc<DBManger>
+
+pub struct PlayerManager<DB> where DB: DBManager {
+    db: Arc<DB>
 }
 
-impl PlayerManager {
-    pub fn new(db: Arc<DBManger>) -> Self {
+impl<DB> PlayerManager<DB> where DB: DBManager {
+    pub fn new(db: Arc<DB>) -> Self {
         PlayerManager { db }
     }
     
@@ -86,11 +87,6 @@ impl PlayerManager {
         println!("{:?}", game.players.iter().map(|player| player.score).collect::<Vec<i32>>());
         self.db.update_players(&game.players).await;
         self.db.create_game(game.clone()).await;
-    }
-
-    fn hande_win_player(&self, player: &mut Player, score: i32) {
-        player.win += 1;
-        player.score += score;
     }
 
     pub async fn find_all_player(&self) -> Vec<Player> {
