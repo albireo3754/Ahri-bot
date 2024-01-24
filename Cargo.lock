@@ -37,6 +37,7 @@ dependencies = [
  "glicko2",
  "itertools",
  "poise",
+ "postgrest",
  "rand",
  "serde",
  "serde_json",
@@ -1116,6 +1117,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.48",
+]
+
+[[package]]
+name = "postgrest"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a966c650b47a064e7082170b4be74fca08c088d893244fc4b70123e3c1f3ee7"
+dependencies = [
+ "reqwest",
 ]
 
 [[package]]
