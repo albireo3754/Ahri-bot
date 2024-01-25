@@ -5,13 +5,14 @@ mod make_game_controller;
 pub mod game;
 pub mod shared;
 pub mod player_manager;
-pub mod db_manager;
+pub mod db;
 pub mod board_controller;
 
 use serenity::{prelude::*, client::ClientBuilder};
 use tokio::time::sleep;
 
-use crate::db_manager::InMemoryDBManger;
+use crate::db::inmemory_db::InMemoryDBManger;
+
 
 #[tokio::main]
 async fn main() {
@@ -67,7 +68,6 @@ async fn main() {
         .framework(framework)
         .await;
     let result = client.expect("fail to start").start().await;
-    
     
     println!("${:?}", result);
 }

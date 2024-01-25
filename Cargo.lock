@@ -39,6 +39,7 @@ dependencies = [
  "poise",
  "postgrest",
  "rand",
+ "reqwest",
  "serde",
  "serde_json",
  "serenity",

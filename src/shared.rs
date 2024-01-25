@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{db_manager::InMemoryDBManger, player_manager::PlayerManager};
+use crate::{player_manager::PlayerManager, db::inmemory_db::InMemoryDBManger};
 
 pub struct Data {
   pub id: i32,

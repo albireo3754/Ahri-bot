@@ -19,3 +19,4 @@ glicko2 = { version = "0.3.1" }
 dotenv = { version = "0.15.0" }
 axum  = { version = "0.7.4" }
 postgrest = { version = "1.6.0" } 
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }

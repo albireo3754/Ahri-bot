@@ -3,8 +3,7 @@ use std::{rc::Rc, sync::Arc};
 use glicko2::{GlickoRating, GameResult};
 use rand::seq::SliceRandom;
 
-use crate::{game::{Player, Game, Tier}, db_manager::{DBManager, InMemoryDBManger}};
-
+use crate::{game::{Player, Game, Tier}, db::DBManager};
 
 pub struct PlayerManager<DB> where DB: DBManager {
     db: Arc<DB>
