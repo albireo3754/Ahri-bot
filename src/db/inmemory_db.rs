@@ -123,29 +123,20 @@ impl DBManager for InMemoryDBManger {
         self.save(players_vec.clone()).await;
     }
 
-    async fn create_player_with_discord_user_id(&self, discord_user_id: u64, summoner_name: String, tier: Tier) -> Player {
+    async fn create_player(&self, player: &Player) -> bool {
         let mut players_vec = self.players_vec.lock().await;
-        let player = Player::new_v2((players_vec.len() + 1) as u64, discord_user_id);
         (*players_vec).push(player.clone());
-        
         self.save(players_vec.clone()).await;
-        player
+        true
     }
 
-    async fn create_player_with_discord_user_id_v2(&self, discord_user_id: u64) -> Player {
-        let mut players_vec = self.players_vec.lock().await;
-        let player = Player::new_v2((players_vec.len() + 1) as u64, discord_user_id);
-        (*players_vec).push(player.clone());
-        
-        self.save(players_vec.clone()).await;
-        player
-    }
-
-
-    async fn create_game(&self, game: Game) {
+    async fn create_game(&self, game: &Game) -> bool {
         let mut last_game_id = self.last_game_id.lock().await;
-        tokio::fs::write(format!("./.data/game/{}.json", game.id), serde_json::to_string(&game).unwrap()).await.unwrap();
-        *last_game_id = game.id as i32;
+        let ok = tokio::fs::write(format!("./.data/game/{}.json", game.id), serde_json::to_string(&game).unwrap()).await.is_ok();
+        if ok {
+            *last_game_id = game.id as i32;
+        }
+        ok
     }
 
     async fn load_game(&self, game_id: i32) -> Game {
@@ -153,7 +144,7 @@ impl DBManager for InMemoryDBManger {
         serde_json::from_slice::<Game>(&raw_game).unwrap()
     }
 
-    async fn get_new_game_id(&self) -> i32 {
+    async fn increase_get_new_game_id(&self) -> i32 {
         let mut last_game_id = self.last_game_id.lock().await;
         *last_game_id += 1;
         return *last_game_id;

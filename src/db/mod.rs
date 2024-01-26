@@ -8,9 +8,8 @@ pub trait DBManager {
     async fn select_all_player(&self) -> Vec<Player>;
     async fn update_player_score(&self, player_id: u64, score: i32);
     async fn update_players(&self, new_players: &Vec<Player>);
-    async fn create_player_with_discord_user_id(&self, discord_user_id: u64, summoner_name: String, tier: Tier) -> Player;
-    async fn create_player_with_discord_user_id_v2(&self, discord_user_id: u64) -> Player;
-    async fn create_game(&self, game: Game);
+    async fn create_player(&self, player: &Player) -> bool;
+    async fn create_game(&self, game: &Game) -> bool;
     async fn load_game(&self, game_id: i32) -> Game;
-    async fn get_new_game_id(&self) -> i32;
+    async fn increase_get_new_game_id(&self) -> i32;
 }

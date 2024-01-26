@@ -85,7 +85,7 @@ impl<DB> PlayerManager<DB> where DB: DBManager {
         // print players score
         println!("{:?}", game.players.iter().map(|player| player.score).collect::<Vec<i32>>());
         self.db.update_players(&game.players).await;
-        self.db.create_game(game.clone()).await;
+        self.db.create_game(&game).await;
     }
 
     pub async fn find_all_player(&self) -> Vec<Player> {
@@ -96,19 +96,17 @@ impl<DB> PlayerManager<DB> where DB: DBManager {
         self.db.select_player_with_discord_user_id(discord_user_id).await
     }
 
-    pub async fn register_player(&self, discord_user_id: u64, summoner_name: String, tier: Tier) -> Player {
-        if let Some(player) = self.db.select_player_with_summoner_name(summoner_name.clone()).await {
+    pub async fn register_player(&self, discord_user_id: u64) -> Player {
+        let player = Player::new_v2(discord_user_id, discord_user_id);
+        if self.db.create_player(&player).await {
             return player;
+        } else {
+            todo!()
         }
-        self.db.create_player_with_discord_user_id(discord_user_id, summoner_name, tier).await
-    }
 
-    pub async fn register_player_v2(&self, discord_user_id: u64) -> Player {
-        self.db.create_player_with_discord_user_id_v2(discord_user_id).await
     }
 
     pub async fn generate_game(&self, host: Player) -> Game {
-
-        return Game::new(self.db.get_new_game_id().await as u64, host);
+        return Game::new(self.db.increase_get_new_game_id().await as u64, host);
     }
 }

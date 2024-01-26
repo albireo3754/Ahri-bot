@@ -11,14 +11,15 @@ pub mod board_controller;
 use serenity::{prelude::*, client::ClientBuilder};
 use tokio::time::sleep;
 
-use crate::db::inmemory_db::InMemoryDBManger;
+use crate::db::{inmemory_db::InMemoryDBManger, supabase_db::SupabaseDBManager};
 
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().unwrap();
 
-    let db_manager = InMemoryDBManger::new();
+    // let db_manager = InMemoryDBManger::new();
+    let db_manager: SupabaseDBManager = SupabaseDBManager::new().await;
     
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
     let intents = GatewayIntents::GUILD_MESSAGES

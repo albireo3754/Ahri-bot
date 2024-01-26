@@ -27,7 +27,7 @@ pub async fn enroll(
         return Ok(());
     }
 
-    let player = ctx.data().player_manager.register_player(discord_user_id.get(), summoner_name, tier.unwrap()).await;
+    let player = ctx.data().player_manager.register_player(discord_user_id.get()).await;
     ctx.say(format!("등록되었습니다. 등록된 유저: {}", player.summoner_name)).await?;
     
     Ok(())

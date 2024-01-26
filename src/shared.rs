@@ -1,10 +1,10 @@
 use std::fmt;
 
-use crate::{player_manager::PlayerManager, db::inmemory_db::InMemoryDBManger};
+use crate::{player_manager::PlayerManager, db::{inmemory_db::InMemoryDBManger, supabase_db::SupabaseDBManager}};
 
 pub struct Data {
   pub id: i32,
-  pub player_manager: PlayerManager<InMemoryDBManger>,
+  pub player_manager: PlayerManager<SupabaseDBManager>,
 } // User data, which is stored and accessible in all command invocations
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;

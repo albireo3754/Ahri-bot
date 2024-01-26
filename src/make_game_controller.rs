@@ -24,7 +24,7 @@ use crate::{shared::{Context, Error}, game::{Game, Player}};
 async fn get_player_from_discord_context(ctx: &Context<'_>, discord_user_id: UserId) -> Result<Player, Error> {
     let player = ctx.data().player_manager.find_player_with_discord_user_id(discord_user_id.get()).await;
     if player.is_none() {
-        let player = ctx.data().player_manager.register_player_v2(discord_user_id.get()).await;
+        let player = ctx.data().player_manager.register_player(discord_user_id.get()).await;
         return Ok(player);
     } else {
         return Ok(player.unwrap());
