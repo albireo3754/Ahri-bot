@@ -25,11 +25,11 @@ impl SupabaseDBManager {
         }
     }
 
-    // async fn decode<T: Deserialize<'a> + Clone>(response: &Response) -> T {
-    //     let response_string = response.text().await.unwrap();
-    //     let result = serde_json::from_reader::<T>(response_string.as_str());
-    //     result.unwrap().clone()
-    // }
+    async fn decode<T: for<'de> Deserialize<'de>>(response: Response) -> T {
+        let response_string = response.text().await.unwrap();
+        let result = serde_json::from_str::<T>(response_string.as_str());
+        result.unwrap()
+    }
 }
 
 impl DBManager for SupabaseDBManager {
