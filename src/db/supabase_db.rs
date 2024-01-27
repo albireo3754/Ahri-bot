@@ -1,4 +1,4 @@
-use std::env;
+use std::{any::{type_name, TypeId}, backtrace::Backtrace, collections::HashMap, env};
 
 use axum::http::HeaderValue;
 use postgrest::Postgrest;
@@ -6,18 +6,19 @@ use reqwest::Response;
 use serde::Deserialize;
 use tokio::sync::Mutex;
 
-use crate::game::Player;
+use crate::{game::Player, legacy::game::GameV0};
 
 use super::DBManager;
 
 pub struct SupabaseDBManager {
-    client: Mutex<Postgrest>,
-    game_id: Mutex<i32>
+    pub client: Mutex<Postgrest>,
+    pub game_id: Mutex<i32>
 }
 
 impl SupabaseDBManager {
     pub async fn new() -> Self {
-        let api_key = env::var("SUPABASE_PUBLIC_API_KEY").unwrap();
+        // let api_key = env::var("SUPABASE_PUBLIC_API_KEY").unwrap();
+        let api_key = env::var("SUPABASE_SERVICE_ROLL").unwrap();
         let client = Postgrest::new("https://veuafjcyistlfaakeecb.supabase.co/rest/v1")
             .insert_header("apiKey", api_key.clone())
             .insert_header(
@@ -32,12 +33,14 @@ impl SupabaseDBManager {
             .await;
 
         let last_game_id = SupabaseDBManager::handle_response(last_game_id).unwrap();
-        println!("{:?}", last_game_id);
-        let last_game_id = SupabaseDBManager::decode::<i32>(last_game_id).await.unwrap() + 1;
+        let last_game_results = SupabaseDBManager::decode::<Vec<HashMap<String, i32>>>(last_game_id).await.unwrap_or(Vec::new());
+        let last_game_id = last_game_results.first().and_then(|json| json.get("id")).unwrap_or(&0).clone();
         let supabaseDBManager = SupabaseDBManager {
             client: Mutex::new(client),
-            game_id: Mutex::new(last_game_id)
+            game_id: Mutex::new(last_game_id + 1)
         };
+
+        println!("SupabaseDB Is Launched");
 
         supabaseDBManager
     }
@@ -47,32 +50,39 @@ impl SupabaseDBManager {
         *game_id = self.increase_get_new_game_id().await;
     }
 
-    fn handle_response(response: Result<Response, reqwest::Error>) -> Option<Response> {
+    pub fn handle_response(response: Result<Response, reqwest::Error>) -> Option<Response> {
         if let Ok(response) = response {
-            return Option::Some(response);
+            if response.status().is_success() {
+                return Option::Some(response);
+            } else {
+                println!("supabase status error: {:?}", response);
+                return Option::None;
+            }
         } else {
             println!("supabase setting error: {:?}", response.err());
             return Option::None;
         }
     }
 
-    async fn decode<T: for<'de> Deserialize<'de>>(response: Response) -> Option<T> {
+    pub async fn decode<T: for<'de> Deserialize<'de>>(response: Response) -> Option<T> {
         let response_string = response.text().await.unwrap();
         let result = serde_json::from_str::<T>(response_string.as_str());
         if let Ok(result) = result {
             return Option::Some(result);
         } else {
-            println!("supabase response decode error: {:?}", result.err());
+            println!("Custom backtrace: {}", Backtrace::capture());
+            println!("supabase decode error data: {}, state: {:?}", response_string, result.err());
             return Option::None;
         }
     }
 
-    async fn encode<T: serde::Serialize>(data: T) -> Option<String> {
+    pub async fn encode<T: serde::Serialize + std::fmt::Debug>(data: T) -> Option<String> {
         let result = serde_json::to_string(&data);
         if let Ok(result) = result {
             return Option::Some(result);
         } else {
-            println!("supabase encode error: {:?}", result.err());
+            println!("Custom backtrace: {}", Backtrace::capture());
+            println!("supabase encode error data: {:?}, state: {:?}", data, result.err());
             return Option::None;
         }
     }
@@ -88,8 +98,8 @@ impl DBManager for SupabaseDBManager {
             .await;
 
         let response = SupabaseDBManager::handle_response(response)?;
-        let player = SupabaseDBManager::decode::<crate::game::Player>(response).await;
-        player
+        let player = SupabaseDBManager::decode::<Vec<crate::game::Player>>(response).await;
+        player.and_then(|player| { player.first().clone() }).cloned()
     }
 
     async fn select_player_with_summoner_name(&self, summoner_name: String) -> Option<crate::game::Player> {
@@ -189,10 +199,9 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test() {
+    #[ignore]
+    async fn supabase_init_test() {
         dotenv::dotenv().ok();
-        println!("{:?}", env::var("SUPABASE_PUBLIC_API_KEY"));
-        let db = SupabaseDBManager::new();
-        // let player = db.select_player_with_discord_user_id(1).await;
+        let _ = SupabaseDBManager::new();
     }
 }

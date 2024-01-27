@@ -2,19 +2,28 @@ use std::{cmp::Ordering, ops::{Index, IndexMut}, borrow::BorrowMut};
 
 use itertools::Itertools;
 use rand::{Rng, seq::SliceRandom, random};
-use serde::{Serialize, Deserialize};
+use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum State {
     queue, ready, start, result(bool), board
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Game {
     pub id: u64,
+    #[serde(serialize_with = "player_ids")]
     pub players: Vec<Player>,
     pub state: State,
     pub team_bit: i32
+}
+
+fn player_ids<S>(players: &Vec<Player>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    let mut seq = serializer.serialize_seq(Some(players.len()))?;
+    for element in players {
+        seq.serialize_element(&element.id)?;
+    }
+    seq.end()
 }
 
 impl Game {
@@ -139,7 +148,7 @@ impl Game {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Player {
     pub id: u64,
     pub discord_id: u64,

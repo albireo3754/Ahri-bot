@@ -7,6 +7,7 @@ pub mod shared;
 pub mod player_manager;
 pub mod db;
 pub mod board_controller;
+pub mod legacy;
 
 use serenity::{prelude::*, client::ClientBuilder};
 use tokio::time::sleep;

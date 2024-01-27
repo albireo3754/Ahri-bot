@@ -1,6 +1,7 @@
 use std::{fs};
 
-use serde::{Serialize, Deserialize};
+use itertools::Itertools;
+use serde::{Deserialize, Serialize, Serializer};
 use tokio::sync::Mutex;
 
 use crate::game::{Player, Tier, Game};
@@ -48,13 +49,14 @@ impl InMemoryDBManger {
         let user_id_json_string = user_id_json_string_result.as_str();
         let mut players_vec: Vec<Player> = serde_json::from_str(user_id_json_string).unwrap_or(Vec::new());
 
-        if players_vec.len() == 0 {
-            players_vec = InMemoryDBManger::migrate_player(user_id_json_string);
-            if players_vec.len() > 0 {
-                fs::write("./.data/user_id.json", serde_json::to_string(&players_vec).unwrap()).unwrap();
-                // TODO: - Game migrate logic need because game's vector has PlayerLegacy & Player
-            }
-        }
+        // MARK: - migration example 
+        // if players_vec.len() == 0 {
+        //     players_vec = InMemoryDBManger::migrate_player(user_id_json_string);
+        //     if players_vec.len() > 0 {
+        //         fs::write("./.data/user_id.json", serde_json::to_string(&players_vec).unwrap()).unwrap();
+        //         // TODO: - Game migrate logic need because game's vector has PlayerLegacy & Player
+        //     }
+        // }
 
         let mut game_count = fs::read_dir("./.data/game").unwrap().map(|entry| {
             let entry = entry.unwrap();
@@ -62,6 +64,7 @@ impl InMemoryDBManger {
             let file_name = path.file_name().unwrap().to_str().unwrap();
             file_name.replace(".json", "").parse::<i32>().unwrap()
         }).max().unwrap_or(0);
+        
         InMemoryDBManger {
             players_vec: Mutex::new(players_vec),
             last_game_id: Mutex::new(game_count as i32)
