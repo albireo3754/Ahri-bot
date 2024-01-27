@@ -11,5 +11,5 @@ pub trait DBManager {
     async fn create_player(&self, player: &Player) -> bool;
     async fn create_game(&self, game: &Game) -> bool;
     async fn load_game(&self, game_id: i32) -> Game;
-    async fn increase_get_new_game_id(&self) -> i32;
+    async fn get_and_increase_new_game_id(&self) -> i32;
 }

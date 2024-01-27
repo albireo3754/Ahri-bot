@@ -147,7 +147,7 @@ impl DBManager for InMemoryDBManger {
         serde_json::from_slice::<Game>(&raw_game).unwrap()
     }
 
-    async fn increase_get_new_game_id(&self) -> i32 {
+    async fn get_and_increase_new_game_id(&self) -> i32 {
         let mut last_game_id = self.last_game_id.lock().await;
         *last_game_id += 1;
         return *last_game_id;

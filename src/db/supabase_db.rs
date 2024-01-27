@@ -47,7 +47,7 @@ impl SupabaseDBManager {
 
     pub async fn init_game_id(&self) {
         let mut game_id = self.game_id.lock().await;
-        *game_id = self.increase_get_new_game_id().await;
+        *game_id = self.get_and_increase_new_game_id().await;
     }
 
     pub fn handle_response(response: Result<Response, reqwest::Error>) -> Option<Response> {
@@ -192,10 +192,11 @@ impl DBManager for SupabaseDBManager {
         game.unwrap()
     }
 
-    async fn increase_get_new_game_id(&self) -> i32 {
+    async fn get_and_increase_new_game_id(&self) -> i32 {
         let mut game_id = self.game_id.lock().await;
+        let new_game_id = *game_id;
         *game_id += 1;
-        return *game_id;
+        return new_game_id;
     }
 }
 

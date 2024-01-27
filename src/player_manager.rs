@@ -107,6 +107,6 @@ impl<DB> PlayerManager<DB> where DB: DBManager {
     }
 
     pub async fn generate_game(&self, host: Player) -> Game {
-        return Game::new(self.db.increase_get_new_game_id().await as u64, host);
+        return Game::new(self.db.get_and_increase_new_game_id().await as u64, host);
     }
 }
