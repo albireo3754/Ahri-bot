@@ -94,12 +94,13 @@ impl DBManager for SupabaseDBManager {
             .from("PLAYER")
             .select("*")
             .eq("discord_id", &discord_user_id.to_string())
+            .single()
             .execute()
             .await;
 
         let response = SupabaseDBManager::handle_response(response)?;
-        let player = SupabaseDBManager::decode::<Vec<crate::game::Player>>(response).await;
-        player.and_then(|player| { player.first().clone() }).cloned()
+        let player = SupabaseDBManager::decode::<crate::game::Player>(response).await;
+        player
     }
 
     async fn select_player_with_summoner_name(&self, summoner_name: String) -> Option<crate::game::Player> {
@@ -107,6 +108,7 @@ impl DBManager for SupabaseDBManager {
             .from("PLAYER")
             .select("*")
             .eq("summoner_name", &summoner_name)
+            .single()
             .execute()
             .await;
 
@@ -119,6 +121,7 @@ impl DBManager for SupabaseDBManager {
         let response = self.client.lock().await
             .from("PLAYER")
             .select("*")
+            .single()
             .execute()
             .await;
 
@@ -180,6 +183,7 @@ impl DBManager for SupabaseDBManager {
             .from("GAME")
             .select("*")
             .eq("id", &game_id.to_string())
+            .single()
             .execute()
             .await;
 
