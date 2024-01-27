@@ -121,12 +121,12 @@ impl DBManager for SupabaseDBManager {
         let response = self.client.lock().await
             .from("PLAYER")
             .select("*")
-            .single()
             .execute()
             .await;
 
         let response = SupabaseDBManager::handle_response(response).unwrap();
         let players = SupabaseDBManager::decode::<Vec<crate::game::Player>>(response).await;
+        println!("players: {:?}", players);
         players.unwrap_or(Vec::new())
     }
 
