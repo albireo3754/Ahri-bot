@@ -147,6 +147,10 @@ impl DBManager for InMemoryDBManger {
         serde_json::from_slice::<Game>(&raw_game).unwrap()
     }
 
+    async fn load_all_game(&self) -> Vec::<Game> {
+        todo!()
+    }
+
     async fn get_and_increase_new_game_id(&self) -> i32 {
         let mut last_game_id = self.last_game_id.lock().await;
         *last_game_id += 1;

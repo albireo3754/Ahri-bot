@@ -192,6 +192,18 @@ impl DBManager for SupabaseDBManager {
         game.unwrap()
     }
 
+    async fn load_all_game(&self) -> Vec::<crate::game::Game> {
+        let response = self.client.lock().await
+            .from("GAME")
+            .select("*")
+            .order("id")
+            .execute()
+            .await;
+
+        let response = SupabaseDBManager::handle_response(response).unwrap();
+        let game = SupabaseDBManager::decode::<Vec::<crate::game::Game>>(response).await;
+        game.unwrap()
+    }
     async fn get_and_increase_new_game_id(&self) -> i32 {
         let mut game_id = self.game_id.lock().await;
         let new_game_id = *game_id;
