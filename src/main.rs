@@ -2,6 +2,7 @@ use std::{env, sync::Arc, net::{TcpListener, TcpStream}, io::{Write, Read}};
 mod autocomplete;
 mod enroll_controller;
 mod make_game_controller;
+use crate::db::DBManager;
 pub mod game;
 pub mod shared;
 pub mod player_manager;
@@ -27,6 +28,7 @@ async fn main() {
         | GatewayIntents::MESSAGE_CONTENT;
     
     let db_ref = Arc::new(db_manager);
+    let db_ref2 = db_ref.clone();
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
@@ -51,6 +53,15 @@ async fn main() {
         loop {
             sleep(tokio::time::Duration::from_millis(1000)).await;
             println!("1000 ms have elapsed");
+        }
+    });
+
+    let db_ref: Arc<SupabaseDBManager> = db_ref2;
+    tokio::spawn(async move {
+        let player_manager: player_manager::PlayerManager<SupabaseDBManager> = player_manager::PlayerManager::<SupabaseDBManager>::new(db_ref);
+        loop {
+            let _ = player_manager.find_all_player().await;
+            sleep(tokio::time::Duration::from_secs(60 * 60 * 24)).await;
         }
     });
 
