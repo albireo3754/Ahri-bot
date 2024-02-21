@@ -204,6 +204,7 @@ impl DBManager for SupabaseDBManager {
         let game = SupabaseDBManager::decode::<Vec::<crate::game::Game>>(response).await;
         game.unwrap()
     }
+    
     async fn get_and_increase_new_game_id(&self) -> i32 {
         let mut game_id = self.game_id.lock().await;
         let new_game_id = *game_id;

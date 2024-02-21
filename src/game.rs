@@ -1,21 +1,77 @@
-use std::{cmp::Ordering, ops::{Index, IndexMut}, borrow::BorrowMut};
+use std::{borrow::BorrowMut, cmp::Ordering, fmt, marker::PhantomData, ops::{Index, IndexMut}, str::FromStr};
 
 use itertools::Itertools;
 use rand::{Rng, seq::SliceRandom, random};
-use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
+use serde::{de::{self, MapAccess, Visitor}, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum State {
     queue, ready, start, result(bool), board
 }
 
+impl FromStr for State {
+    type Err = void::Void;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(serde_json::from_str::<State>(s).unwrap())
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Game {
     pub id: u64,
     #[serde(serialize_with = "player_ids")]
+    #[serde(skip_deserializing)]
     pub players: Vec<Player>,
+    #[serde(rename(deserialize = "players"))]
+    pub players_id: Vec<u64>,
+    #[serde(deserialize_with = "string_or_struct")]
     pub state: State,
     pub team_bit: i32
+}
+
+// https://serde.rs/string-or-struct.html
+fn string_or_struct<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Deserialize<'de> + FromStr<Err = void::Void>,
+    D: Deserializer<'de>,
+{
+    // This is a Visitor that forwards string types to T's `FromStr` impl and
+    // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
+    // keep the compiler from complaining about T being an unused generic type
+    // parameter. We need T in order to know the Value type for the Visitor
+    // impl.
+    struct StringOrStruct<T>(PhantomData<fn() -> T>);
+
+    impl<'de, T> Visitor<'de> for StringOrStruct<T>
+    where
+        T: Deserialize<'de> + FromStr<Err = void::Void>,
+    {
+        type Value = T;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("string or map")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<T, E>
+        where
+            E: de::Error,
+        {
+            Ok(FromStr::from_str(value).unwrap())
+        }
+
+        fn visit_map<M>(self, map: M) -> Result<T, M::Error>
+        where
+            M: MapAccess<'de>,
+        {
+            // `MapAccessDeserializer` is a wrapper that turns a `MapAccess`
+            // into a `Deserializer`, allowing it to be used as the input to T's
+            // `Deserialize` implementation. T then deserializes itself using
+            // the entries from the map visitor.
+            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
+        }
+    }
+
+    deserializer.deserialize_any(StringOrStruct(PhantomData))
 }
 
 fn player_ids<S>(players: &Vec<Player>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
@@ -33,6 +89,7 @@ impl Game {
         Game {
             id: id,
             players: players,
+            players_id: vec![],
             state: State::queue,
             team_bit: 0b11111
         }
